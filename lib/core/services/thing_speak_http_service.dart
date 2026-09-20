@@ -28,7 +28,7 @@ class ThingSpeakHttpService {
   }
 
   Future<SensorReading> fetchLatestReading({String tankId = 'tank-main'}) async {
-    // 1. Prioritize Direct ThingSpeak Cloud API (Real-time live feeds)
+    // 1. Direct ThingSpeak Cloud API (Real-time live feeds)
     try {
       final thingSpeakUrl = Uri.parse(
         'https://api.thingspeak.com/channels/${AppConstants.thingSpeakChannelId}/feeds/last.json',
@@ -63,7 +63,7 @@ class ThingSpeakHttpService {
       }
     } catch (_) {}
 
-    // 3. Fallback to cached or baseline reading if offline
+    // 3. Fallback to cached reading or baseline if offline
     if (_lastFetchedReading != null) {
       return _lastFetchedReading!;
     }
@@ -82,7 +82,7 @@ class ThingSpeakHttpService {
   }
 
   Future<List<SensorReading>> fetchHistoricalReadings(String tankId, {int results = 50}) async {
-    // 1. Prioritize Direct ThingSpeak Cloud API
+    // 1. Direct ThingSpeak Cloud API (Real-time history)
     try {
       final thingSpeakUrl = Uri.parse(
         'https://api.thingspeak.com/channels/${AppConstants.thingSpeakChannelId}/feeds.json?results=$results',
