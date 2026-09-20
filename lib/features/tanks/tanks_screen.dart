@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -126,7 +125,7 @@ class TanksScreen extends ConsumerWidget {
                 children: [
                   Text('Capacity: ${tank.capacity.toStringAsFixed(0)} L', style: const TextStyle(color: Colors.white60, fontSize: 12)),
                   Text('Cleaned: ${tank.daysSinceCleaning}d ago', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                  Text('Device: ${tank.deviceId ?? "None"}', style: const TextStyle(color: AppConstants.accentCyan, fontSize: 12)),
+                  Text('Status: ${tank.status.name.toUpperCase()}', style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.w600)),
                 ],
               ),
             ],

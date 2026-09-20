@@ -51,7 +51,6 @@ class TankDetailScreen extends ConsumerWidget {
                   const Divider(color: Colors.white24, height: 24),
                   _infoRow('Status', tank.status.name.toUpperCase(), Colors.greenAccent),
                   _infoRow('Capacity', '${tank.capacity.toStringAsFixed(0)} Liters', Colors.white),
-                  _infoRow('Paired Device', tank.deviceId ?? 'None', AppConstants.accentCyan),
                   _infoRow('Power Source', device?.powerStatus.name.toUpperCase() ?? 'MAINS', Colors.white),
                   _infoRow('Last Cleaned', '${tank.daysSinceCleaning} days ago', Colors.amber),
                   _infoRow('AI Water Quality Score', '${ai.waterQualityScore} / 100 (${ai.status})', AppConstants.getScoreColor(ai.waterQualityScore)),

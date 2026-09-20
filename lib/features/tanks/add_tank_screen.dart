@@ -16,7 +16,6 @@ class _AddTankScreenState extends ConsumerState<AddTankScreen> {
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
   final _capacityController = TextEditingController(text: '5000');
-  final _deviceIdController = TextEditingController(text: 'TANK_005');
 
   void _submit() {
     if (_nameController.text.isEmpty) return;
@@ -28,7 +27,7 @@ class _AddTankScreenState extends ConsumerState<AddTankScreen> {
       capacity: double.tryParse(_capacityController.text) ?? 5000.0,
       description: 'Institutional storage tank',
       status: TankStatus.online,
-      deviceId: _deviceIdController.text,
+      deviceId: null,
       installationDate: now,
       lastCleanedAt: now,
       createdAt: now,
@@ -67,12 +66,6 @@ class _AddTankScreenState extends ConsumerState<AddTankScreen> {
                 keyboardType: TextInputType.number,
                 style: const TextStyle(color: Colors.white),
                 decoration: const InputDecoration(labelText: 'Capacity (Liters)', prefixIcon: Icon(Icons.line_weight_rounded)),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _deviceIdController,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Paired Device ID (ESP32)', prefixIcon: Icon(Icons.router_outlined)),
               ),
               const SizedBox(height: 32),
               SizedBox(
