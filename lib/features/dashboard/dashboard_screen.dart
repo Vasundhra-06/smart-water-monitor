@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/mock_sensor_service.dart';
-import '../../core/widgets/app_sidebar.dart';
 import '../../core/widgets/notification_bell_button.dart';
 import 'widgets/dashboard_historical_graph.dart';
 import '../../data/models/tank.dart';
@@ -80,48 +79,64 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     PreferredSizeWidget appBar = AppBar(
       backgroundColor: AppConstants.darkCardBackground,
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      elevation: 0,
+      title: Row(
         children: [
-          Text(AppConstants.appName, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-          Row(
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppConstants.accentCyan.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.4)),
+            ),
+            child: const Icon(Icons.water_drop_rounded, color: AppConstants.accentCyan, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButton<String>(
-                value: activeTank.id,
-                dropdownColor: AppConstants.darkSurface,
-                underline: const SizedBox(),
-                isDense: true,
-                icon: const Icon(Icons.arrow_drop_down, color: AppConstants.accentCyan),
-                items: (tanksAsync.value ?? [activeTank]).map((tank) {
-                  return DropdownMenuItem<String>(
-                    value: tank.id,
-                    child: Text(
-                      tank.tankName,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+              Text(AppConstants.appName, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  DropdownButton<String>(
+                    value: activeTank.id,
+                    dropdownColor: AppConstants.darkSurface,
+                    underline: const SizedBox(),
+                    isDense: true,
+                    icon: const Icon(Icons.arrow_drop_down, color: AppConstants.accentCyan),
+                    items: (tanksAsync.value ?? [activeTank]).map((tank) {
+                      return DropdownMenuItem<String>(
+                        value: tank.id,
+                        child: Text(
+                          tank.tankName,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (id) {
+                      if (id != null) {
+                        final chosen = (tanksAsync.value ?? []).firstWhere((t) => t.id == id, orElse: () => activeTank);
+                        ref.read(selectedTankProvider.notifier).state = chosen;
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  );
-                }).toList(),
-                onChanged: (id) {
-                  if (id != null) {
-                    final chosen = (tanksAsync.value ?? []).firstWhere((t) => t.id == id, orElse: () => activeTank);
-                    ref.read(selectedTankProvider.notifier).state = chosen;
-                  }
-                },
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Row(
-                  children: [
-                    CircleAvatar(radius: 3, backgroundColor: Colors.greenAccent),
-                    SizedBox(width: 4),
-                    Text('Live', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ],
-                ),
+                    child: const Row(
+                      children: [
+                        CircleAvatar(radius: 3, backgroundColor: Colors.greenAccent),
+                        SizedBox(width: 4),
+                        Text('Live', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -129,25 +144,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       actions: [
         const NotificationBellButton(),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
       ],
     );
 
     return Scaffold(
       backgroundColor: AppConstants.darkBackground,
-      body: Row(
-        children: [
-          const AppSidebar(activeRoute: '/dashboard'),
-          const VerticalDivider(color: AppConstants.darkCardBorder, width: 1),
-          Expanded(
-            child: Scaffold(
-              backgroundColor: AppConstants.darkBackground,
-              appBar: appBar,
-              body: mainContent,
-            ),
-          ),
-        ],
-      ),
+      appBar: appBar,
+      body: mainContent,
     );
   }
 
