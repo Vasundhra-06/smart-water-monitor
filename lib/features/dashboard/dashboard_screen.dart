@@ -45,9 +45,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Developer Demo Control Banner
-          _buildDemoScenarioControlCard(context, ref, scenario, activeTank.id),
-          const SizedBox(height: 16),
 
           // Deterioration Peak Warning Alert Card (If AI detects deterioration)
           if (aiData.cleaningRecommendation || scenario == SimulationScenario.deteriorating)
@@ -157,50 +154,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               backgroundColor: AppConstants.darkBackground,
               appBar: appBar,
               body: mainContent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDemoScenarioControlCard(BuildContext context, WidgetRef ref, SimulationScenario scenario, String tankId) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppConstants.darkSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppConstants.primaryBlue.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.science_outlined, color: AppConstants.accentCyan, size: 20),
-          const SizedBox(width: 8),
-          const Text('Demo Mode:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: DropdownButton<SimulationScenario>(
-              value: scenario,
-              dropdownColor: AppConstants.darkSurface,
-              isExpanded: true,
-              underline: const SizedBox(),
-              style: const TextStyle(color: AppConstants.accentCyan, fontSize: 12, fontWeight: FontWeight.bold),
-              items: const [
-                DropdownMenuItem(value: SimulationScenario.normal, child: Text('Normal Water')),
-                DropdownMenuItem(value: SimulationScenario.deteriorating, child: Text('Deteriorating (Abnormal Peak)')),
-                DropdownMenuItem(value: SimulationScenario.critical, child: Text('Critical Water')),
-                DropdownMenuItem(value: SimulationScenario.powerFailure, child: Text('Power Failure (Battery Backup)')),
-                DropdownMenuItem(value: SimulationScenario.deviceOffline, child: Text('Device Offline')),
-              ],
-              onChanged: (sc) {
-                if (sc != null) {
-                  ref.read(simulationScenarioProvider.notifier).state = sc;
-                  MockSensorService.instance.setScenario(sc);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Activated Demo Scenario: ${sc.name.toUpperCase()}')),
-                  );
-                }
-              },
             ),
           ),
         ],
