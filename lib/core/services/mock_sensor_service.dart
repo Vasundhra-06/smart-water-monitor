@@ -545,6 +545,11 @@ class MockSensorService {
     _historyMap[tank.id] = _generateHistoryForTank(tank.id, tank.deviceId ?? 'TANK_005');
   }
 
+  void deleteTank(String tankId) {
+    _tanks.removeWhere((t) => t.id == tankId);
+    _historyMap.remove(tankId);
+  }
+
   String _getMonthName(int m) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[m - 1];

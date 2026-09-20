@@ -20,8 +20,6 @@ class TanksScreen extends ConsumerWidget {
     final tanks = tanksAsync.value ?? MockSensorService.instance.getTanks();
     final role = ref.watch(userRoleProvider);
 
-    final isDesktop = kIsWeb || MediaQuery.of(context).size.width > 500;
-
     Widget mainScreen = Scaffold(
       backgroundColor: AppConstants.darkBackground,
       appBar: AppBar(
@@ -35,14 +33,31 @@ class TanksScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: tanks.length,
-        itemBuilder: (context, index) {
-          final tank = tanks[index];
-          return _buildTankCard(context, ref, tank);
-        },
-      ),
+      body: tanks.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.water_damage_outlined, size: 64, color: Colors.white38),
+                  const SizedBox(height: 16),
+                  const Text('No tanks available', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add New Tank'),
+                    onPressed: () => context.push('/add-tank'),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: tanks.length,
+              itemBuilder: (context, index) {
+                final tank = tanks[index];
+                return _buildTankCard(context, ref, tank);
+              },
+            ),
     );
 
     return Scaffold(
@@ -85,10 +100,21 @@ class TanksScreen extends ConsumerWidget {
                       Text(tank.tankName, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: scoreColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                    child: Text('${aiData.waterQualityScore}/100 (${aiData.status})', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: scoreColor.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(12)),
+                        child: Text('${aiData.waterQualityScore}/100 (${aiData.status})', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                        tooltip: 'Delete Tank',
+                        splashRadius: 20,
+                        onPressed: () => _confirmDeleteTank(context, ref, tank),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -106,6 +132,98 @@ class TanksScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _confirmDeleteTank(BuildContext context, WidgetRef ref, Tank tank) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF161F30),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF1E293B)),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Delete Tank',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${tank.tankName}"?',
+              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This will remove all associated telemetry, logs, and sensor records for this tank. This action cannot be undone.',
+              style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(tankRepositoryProvider).deleteTank(tank.id);
+              ref.invalidate(tanksProvider);
+              if (ref.read(selectedTankProvider)?.id == tank.id) {
+                final remaining = ref.read(tanksProvider).value ?? [];
+                ref.read(selectedTankProvider.notifier).state = remaining.isNotEmpty ? remaining.first : null;
+              }
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: const Color(0xFF1E293B),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle_outline, color: Colors.redAccent, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '${tank.tankName} has been deleted.',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ),
     );
   }

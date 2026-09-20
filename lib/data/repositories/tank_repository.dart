@@ -7,6 +7,7 @@ abstract class ITankRepository {
   Future<Tank?> getTankById(String id);
   Future<Device?> getDeviceForTank(String tankId);
   Future<void> addTank(Tank tank);
+  Future<void> deleteTank(String tankId);
 }
 
 class TankRepository implements ITankRepository {
@@ -30,5 +31,10 @@ class TankRepository implements ITankRepository {
   @override
   Future<void> addTank(Tank tank) async {
     _mockService.addTank(tank);
+  }
+
+  @override
+  Future<void> deleteTank(String tankId) async {
+    _mockService.deleteTank(tankId);
   }
 }
