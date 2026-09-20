@@ -6,6 +6,12 @@ import urllib.request
 import urllib.parse
 from datetime import datetime
 
+# Export top-level FastAPI app for Vercel
+try:
+    from backend_ai.main import app
+except Exception:
+    app = None
+
 PORT = int(os.environ.get("PORT", 8080))
 DIRECTORY = os.path.join(os.path.dirname(__file__), "build", "web")
 
