@@ -1,0 +1,27 @@
+Component Name,Pin Label,ESP32 Pin,Wire Color,Wire Type,Function
+1602A LCD,Pin 1 (GND),GND,Black,Female-to-Male,Ground
+1602A LCD,Pin 2 (VDD),VIN (5V),Red,Female-to-Male,5V Power
+1602A LCD,Pin 3 (VO),GND,Black,Female-to-Male,Contrast Control
+1602A LCD,Pin 4 (RS),GPIO 19,Purple,Female-to-Male,Register Select
+1602A LCD,Pin 5 (RW),GND,Black,Female-to-Male,Write Mode
+1602A LCD,Pin 6 (E),GPIO 23,White,Female-to-Male,Enable Signal
+1602A LCD,Pin 11 (D4),GPIO 18,Blue,Female-to-Male,Data 4
+1602A LCD,Pin 12 (D5),GPIO 17,Green,Female-to-Male,Data 5
+1602A LCD,Pin 13 (D6),GPIO 16,Yellow,Female-to-Male,Data 6
+1602A LCD,Pin 14 (D7),GPIO 15,Orange,Female-to-Male,Data 7
+1602A LCD,Pin 15 (BLA),VIN (5V),Red,Female-to-Male,Backlight Anode
+1602A LCD,Pin 16 (BLK),GND,Black,Female-to-Male,Backlight Cathode
+pH Sensor Board,V+ / VCC,VIN (5V),Red,Female-to-Female,Power 5V
+pH Sensor Board,GND,GND,Black,Female-to-Female,Ground
+pH Sensor Board,Po,GPIO 32,Blue,Female-to-Female,Analog pH Signal
+DS18B20 Temp Probe,Red Wire,3V3 (or VIN),Red,Lead Wire,Power 3.3V
+DS18B20 Temp Probe,Black Wire,GND,Black,Lead Wire,Ground
+DS18B20 Temp Probe,Yellow Wire,GPIO 4,Yellow,Lead Wire,OneWire Data
+TDS Meter V1.0,#NAME?,VIN (5V),Red,Female-to-Female,Power 5V
+TDS Meter V1.0,#NAME?,GND,Black,Female-to-Female,Ground
+TDS Meter V1.0,A (Out),GPIO 34,Green,Female-to-Female,Analog TDS Signal
+Turbidity Sensor,V (VCC),VIN (5V),Red,Female-to-Female,Power 5V
+Turbidity Sensor,G (GND),GND,Black,Female-to-Female,Ground
+Turbidity Sensor,A (Out),GPIO 35,Orange,Female-to-Female,Analog Turbidity Signal
+12V 2A Adapter,12V Positive,VIN,Red,DC Jack Adapter,12V Input Power
+12V 2A Adapter,12V Negative,GND,Black,DC Jack Adapter,Ground Return

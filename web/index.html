@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="description" content="Smart Water Quality Monitoring System">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Smart Water Monitor">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Smart Water Monitor</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0A0E1A;
+    }
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: #0A0E1A;
+      z-index: 99999;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      transition: opacity 0.5s ease;
+    }
+    .loading-icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+    }
+    .loading-title {
+      color: #FFFFFF;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .loading-subtitle {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(0, 229, 255, 0.2);
+      border-top: 3px solid #00E5FF;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="loading-icon">💧</div>
+    <div class="loading-title">Smart Water Monitor</div>
+    <div class="loading-subtitle">Loading application...</div>
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+      });
+    }
+    if (window.caches) {
+      caches.keys().then(function(names) {
+        for (let name of names) {
+          caches.delete(name);
+        }
+      });
+    }
+    window.flutterConfiguration = {
+      renderer: "html"
+    };
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    function removeLoader() {
+      var loader = document.getElementById('loading');
+      if (loader) {
+        loader.style.opacity = '0';
+        loader.style.pointerEvents = 'none';
+        setTimeout(function() {
+          if (loader && loader.parentNode) {
+            loader.parentNode.removeChild(loader);
+          }
+        }, 300);
+      }
+    }
+    window.addEventListener('flutter-first-frame', removeLoader);
+    window.addEventListener('load', function() {
+      setTimeout(removeLoader, 800);
+    });
+    setTimeout(removeLoader, 1500);
+  </script>
+</body>
+</html>
