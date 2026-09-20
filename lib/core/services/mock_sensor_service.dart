@@ -207,8 +207,26 @@ class MockSensorService {
         cleanedAt: now.subtract(const Duration(days: 14)),
         cleanedBy: 'Amit Patel (Technician)',
         notes: 'Filter backwash and walls sanitization',
-        cleaningMethod: 'Pressure Wash',
+        cleaningMethod: 'Pressure Wash & Descaling',
         createdAt: now.subtract(const Duration(days: 14)),
+      ),
+      CleaningRecord(
+        id: 'clean-4',
+        tankId: 'tank-canteen',
+        cleanedAt: now.subtract(const Duration(days: 22)),
+        cleanedBy: 'Vikram Singh (Technician)',
+        notes: 'Food-grade chemical sanitization, sediment vacuuming, and inflow filter replacement.',
+        cleaningMethod: 'Chemical Sanitization & Deep Scrubbing',
+        createdAt: now.subtract(const Duration(days: 22)),
+      ),
+      CleaningRecord(
+        id: 'clean-5',
+        tankId: 'tank-ro',
+        cleanedAt: now.subtract(const Duration(days: 9)),
+        cleanedBy: 'Rajesh Kumar (Technician)',
+        notes: 'RO membrane flush, carbon filter renewal, and UV chamber sterilizing.',
+        cleaningMethod: 'RO Membrane Clean & UV Sterilization',
+        createdAt: now.subtract(const Duration(days: 9)),
       ),
     ];
 
@@ -406,7 +424,10 @@ class MockSensorService {
 
   List<AlertItem> getAlerts() => List.unmodifiable(_alerts);
 
-  List<CleaningRecord> getCleaningHistory(String tankId) {
+  List<CleaningRecord> getCleaningHistory([String? tankId]) {
+    if (tankId == null || tankId == 'all' || tankId.isEmpty) {
+      return List.unmodifiable(_cleaningHistory);
+    }
     return _cleaningHistory.where((c) => c.tankId == tankId).toList();
   }
 
