@@ -22,8 +22,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  int _currentIndex = 0;
-
   @override
   Widget build(BuildContext context) {
     final selectedTank = ref.watch(selectedTankProvider);
@@ -35,10 +33,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final aiAsync = ref.watch(aiAnalysisProvider(activeTank.id));
     final aiData = aiAsync.value ?? MockSensorService.instance.getAIAnalysis(activeTank.id);
 
-    final scoreColor = AppConstants.getScoreColor(aiData.waterQualityScore);
     final scenario = ref.watch(simulationScenarioProvider);
-
-    final isDesktop = kIsWeb || MediaQuery.of(context).size.width > 500;
 
     Widget mainContent = SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -50,9 +45,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (aiData.cleaningRecommendation || scenario == SimulationScenario.deteriorating)
             _buildCleaningAlertBanner(context, activeTank, aiData),
 
-          // Large Water Quality Score Gauge
-          _buildWaterQualityScoreCard(aiData, scoreColor),
-          const SizedBox(height: 20),
+          // Interactive Historical Trend Graph Section (Replaces Overall Score)
+          DashboardHistoricalGraph(tankId: activeTank.id),
+          const SizedBox(height: 24),
 
           // Live Updates Stale Data Indicator
           Row(
@@ -72,10 +67,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
           // 4 Live Sensor Cards Grid
           _buildSensorCardsGrid(context, latestReading),
-          const SizedBox(height: 24),
-
-          // Interactive Historical Trend Graph Section
-          DashboardHistoricalGraph(tankId: activeTank.id),
           const SizedBox(height: 24),
 
           // AI Trend Overview & Quick Actions
@@ -205,62 +196,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildWaterQualityScoreCard(AIAnalysisResult aiData, Color scoreColor) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppConstants.darkCardBackground,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: scoreColor.withValues(alpha: 0.4), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: scoreColor.withValues(alpha: 0.1),
-            blurRadius: 16,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text('OVERALL WATER QUALITY SCORE', style: GoogleFonts.inter(color: Colors.white60, fontSize: 12, letterSpacing: 1.2)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '${aiData.waterQualityScore}',
-                style: GoogleFonts.inter(fontSize: 56, fontWeight: FontWeight.bold, color: scoreColor),
-              ),
-              Text(
-                ' / 100',
-                style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white38),
-              ),
-            ],
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            decoration: BoxDecoration(
-              color: scoreColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              aiData.status,
-              style: GoogleFonts.inter(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Monitoring & Early Warning System • Non-certified indicative parameter score',
-            style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSensorCardsGrid(BuildContext context, SensorReading reading) {
     return Column(

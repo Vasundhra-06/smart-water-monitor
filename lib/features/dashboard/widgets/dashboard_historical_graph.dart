@@ -21,7 +21,48 @@ class DashboardHistoricalGraph extends ConsumerStatefulWidget {
 }
 
 class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGraph> {
-  String _selectedRange = '30d'; // 'today', '7d', '30d'
+  String _selectedRange = '30d'; // 'today', '7d', '30d', 'custom'
+  DateTimeRange? _customDateRange;
+
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 1)),
+      initialDateRange: _customDateRange ?? DateTimeRange(
+        start: now.subtract(const Duration(days: 14)),
+        end: now,
+      ),
+      helpText: 'SELECT CUSTOM DATE RANGE',
+      cancelText: 'CANCEL',
+      confirmText: 'APPLY',
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            scaffoldBackgroundColor: AppConstants.darkBackground,
+            colorScheme: const ColorScheme.dark(
+              primary: AppConstants.accentCyan,
+              onPrimary: Colors.black,
+              surface: AppConstants.darkCardBackground,
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppConstants.darkBackground,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _customDateRange = picked;
+        _selectedRange = 'custom';
+      });
+    }
+  }
 
   List<SensorReading> _filterReadings(List<SensorReading> list) {
     if (list.isEmpty) return [];
@@ -38,6 +79,11 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
       final cutoff = now.subtract(const Duration(days: 7));
       final filtered = list.where((r) => r.timestamp.isAfter(cutoff)).toList();
       return filtered.isNotEmpty ? filtered : list.take(14).toList();
+    } else if (_selectedRange == 'custom' && _customDateRange != null) {
+      final start = DateTime(_customDateRange!.start.year, _customDateRange!.start.month, _customDateRange!.start.day, 0, 0, 0);
+      final end = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+      final filtered = list.where((r) => !r.timestamp.isBefore(start) && !r.timestamp.isAfter(end)).toList();
+      return filtered;
     } else {
       final cutoff = now.subtract(const Duration(days: 30));
       final filtered = list.where((r) => r.timestamp.isAfter(cutoff)).toList();
@@ -68,6 +114,9 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
     final spots = <FlSpot>[];
     for (int i = 0; i < readings.length; i++) {
       spots.add(FlSpot(i.toDouble(), readings[i].waterQualityScore.toDouble()));
+    }
+    if (spots.length == 1) {
+      spots.add(FlSpot(1, spots[0].y));
     }
 
     final latestScore = readings.isNotEmpty ? readings.last.waterQualityScore : 85;
@@ -111,13 +160,15 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                   ),
                 ],
               ),
-              Row(
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                alignment: WrapAlignment.end,
                 children: [
                   _buildRangeButton('Today', 'today'),
-                  const SizedBox(width: 6),
                   _buildRangeButton('7 Days', '7d'),
-                  const SizedBox(width: 6),
                   _buildRangeButton('30 Days', '30d'),
+                  _buildCustomRangeButton(),
                 ],
               ),
             ],
@@ -140,7 +191,21 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
           SizedBox(
             height: 240,
             child: readings.isEmpty
-                ? const Center(child: Text('No historical telemetry available', style: TextStyle(color: Colors.white38)))
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.event_busy_rounded, color: Colors.white24, size: 36),
+                        const SizedBox(height: 8),
+                        Text(
+                          _selectedRange == 'custom'
+                              ? 'No telemetry data recorded within selected date range'
+                              : 'No historical telemetry available',
+                          style: const TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  )
                 : LineChart(
                     LineChartData(
                       minY: 0,
@@ -308,6 +373,48 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
             fontSize: 10,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomRangeButton() {
+    final isSelected = _selectedRange == 'custom';
+    String label = 'Custom';
+    if (isSelected && _customDateRange != null) {
+      final s = _customDateRange!.start;
+      final e = _customDateRange!.end;
+      label = '${s.day} ${_getMonthName(s.month)} - ${e.day} ${_getMonthName(e.month)}';
+    }
+
+    return InkWell(
+      onTap: _pickCustomRange,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? AppConstants.accentCyan : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? AppConstants.accentCyan : AppConstants.darkCardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.date_range_rounded,
+              size: 11,
+              color: isSelected ? Colors.black : Colors.white70,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.black : Colors.white70,
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
