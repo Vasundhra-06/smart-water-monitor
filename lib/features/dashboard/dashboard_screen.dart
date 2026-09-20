@@ -446,7 +446,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildActionCard(context, 'Device Status', Icons.router_outlined, () => context.push('/device-details'))),
+            Expanded(child: _buildActionCard(context, 'Storage Tanks', Icons.water_rounded, () => context.push('/tanks'))),
             const SizedBox(width: 12),
             Expanded(child: _buildActionCard(context, 'PDF Reports', Icons.picture_as_pdf_outlined, () => context.push('/reports'))),
           ],

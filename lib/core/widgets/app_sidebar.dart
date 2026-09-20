@@ -83,10 +83,9 @@ class AppSidebar extends ConsumerWidget {
                   const SizedBox(height: 16),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(12, 8, 12, 6),
-                    child: Text('REPORTS & HARDWARE', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                    child: Text('REPORTS & MAINTENANCE', style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                   ),
                   _navTile(context, 'Audit Reports', Icons.picture_as_pdf_rounded, '/reports'),
-                  _navTile(context, 'Device Details', Icons.router_rounded, '/device-details'),
                   _navTile(context, 'Cleaning Log', Icons.cleaning_services_rounded, '/cleaning-history'),
                   _navTile(context, 'Settings', Icons.settings_rounded, '/settings'),
                 ],
