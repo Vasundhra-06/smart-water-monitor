@@ -142,10 +142,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       actions: [
         const NotificationBellButton(),
-        IconButton(
-          icon: const Icon(Icons.settings_outlined, color: Colors.white),
-          onPressed: () => context.push('/settings'),
-        ),
+        const SizedBox(width: 8),
       ],
     );
 

@@ -87,7 +87,6 @@ class AppSidebar extends ConsumerWidget {
                   ),
                   _navTile(context, 'Audit Reports', Icons.picture_as_pdf_rounded, '/reports'),
                   _navTile(context, 'Cleaning Log', Icons.cleaning_services_rounded, '/cleaning-history'),
-                  _navTile(context, 'Settings', Icons.settings_rounded, '/settings'),
                 ],
               ),
             ),
