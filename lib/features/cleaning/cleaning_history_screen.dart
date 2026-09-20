@@ -19,6 +19,7 @@ class CleaningHistoryScreen extends ConsumerStatefulWidget {
 }
 
 class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
+  // Filter state: 'all' or specific tank ID ('tank-main', 'tank-canteen', 'tank-hostel', 'tank-ro')
   String _selectedFilterTankId = 'all';
 
   @override
@@ -26,13 +27,14 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
     final allTanks = ref.watch(tanksProvider).value ?? MockSensorService.instance.getTanks();
     final allRecords = MockSensorService.instance.getCleaningHistory('all');
 
-    // Filter records according to selected chip
+    // Filter records according to selected filter
     final displayedRecords = _selectedFilterTankId == 'all'
         ? allRecords
         : allRecords.where((r) => r.tankId == _selectedFilterTankId).toList();
 
     // Map tank IDs to Tank objects for quick lookup
     final Map<String, Tank> tankMap = {for (var t in allTanks) t.id: t};
+    final activeTank = tankMap[_selectedFilterTankId];
 
     return Scaffold(
       backgroundColor: AppConstants.darkBackground,
@@ -66,39 +68,56 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Tank Filter Chips Bar
+                  // 1. Interactive Dual Filter Bar (Chips + Dropdown)
                   _buildTankFilterBar(allTanks, allRecords),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // 2. Summary Statistics Overview Cards
+                  // 2. Active Filter Banner (if filtered)
+                  if (_selectedFilterTankId != 'all') ...[
+                    _buildActiveFilterBanner(activeTank, displayedRecords.length),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 3. Summary Statistics Overview Cards
                   _buildSummaryStats(allTanks, displayedRecords),
                   const SizedBox(height: 24),
 
-                  // 3. Section Title with Count
+                  // 4. Section Title with Count
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _selectedFilterTankId == 'all'
-                            ? 'All Tank Cleaning Logs (${displayedRecords.length})'
-                            : '${tankMap[_selectedFilterTankId]?.tankName ?? "Selected Tank"} Logs (${displayedRecords.length})',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            _selectedFilterTankId == 'all' ? Icons.layers_rounded : _getTankIcon(_selectedFilterTankId),
+                            color: _selectedFilterTankId == 'all' ? AppConstants.accentCyan : _getTankColor(_selectedFilterTankId),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _selectedFilterTankId == 'all'
+                                ? 'All Tank Cleaning Logs (${displayedRecords.length} Total)'
+                                : '${activeTank?.tankName ?? "Selected Tank"} Logs (${displayedRecords.length})',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                       if (_selectedFilterTankId != 'all')
                         TextButton.icon(
                           onPressed: () => setState(() => _selectedFilterTankId = 'all'),
-                          icon: const Icon(Icons.clear_all_rounded, size: 16, color: AppConstants.accentCyan),
-                          label: const Text('Show All Tanks', style: TextStyle(color: AppConstants.accentCyan, fontSize: 12)),
+                          style: TextButton.styleFrom(foregroundColor: AppConstants.accentCyan),
+                          icon: const Icon(Icons.clear_all_rounded, size: 16),
+                          label: const Text('View All Tanks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         ),
                     ],
                   ),
                   const SizedBox(height: 14),
 
-                  // 4. Cleaning Records List
+                  // 5. Cleaning Records List
                   displayedRecords.isEmpty
                       ? _buildEmptyState()
                       : ListView.separated(
@@ -122,11 +141,11 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // TANK FILTER CHIPS BAR
+  // TANK FILTER BAR (CHIPS + DROPDOWN)
   // ---------------------------------------------------------------------------
   Widget _buildTankFilterBar(List<Tank> tanks, List<CleaningRecord> allRecords) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppConstants.darkCardBackground,
         borderRadius: BorderRadius.circular(16),
@@ -136,54 +155,106 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.filter_list_rounded, size: 16, color: AppConstants.accentCyan),
-              const SizedBox(width: 8),
-              Text(
-                'FILTER BY TANK',
-                style: GoogleFonts.inter(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
+              Row(
+                children: [
+                  const Icon(Icons.filter_list_rounded, size: 18, color: AppConstants.accentCyan),
+                  const SizedBox(width: 8),
+                  Text(
+                    'FILTER CLEANING LOGS BY TANK',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Dropdown Menu Selector
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedFilterTankId,
+                    dropdownColor: const Color(0xFF0F1B33),
+                    icon: const Icon(Icons.arrow_drop_down_rounded, color: AppConstants.accentCyan),
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                    onChanged: (String? newId) {
+                      if (newId != null) {
+                        setState(() => _selectedFilterTankId = newId);
+                      }
+                    },
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: 'all',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.layers_rounded, size: 16, color: AppConstants.accentCyan),
+                            const SizedBox(width: 8),
+                            Text('All Tanks (${allRecords.length})'),
+                          ],
+                        ),
+                      ),
+                      ...tanks.map((tank) {
+                        final count = allRecords.where((r) => r.tankId == tank.id).length;
+                        final color = _getTankColor(tank.id);
+                        final icon = _getTankIcon(tank.id);
+                        return DropdownMenuItem<String>(
+                          value: tank.id,
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 16, color: color),
+                              const SizedBox(width: 8),
+                              Text('${tank.tankName} ($count)'),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // "All Tanks" chip
-                _buildFilterChip(
-                  id: 'all',
-                  label: 'All Tanks',
-                  icon: Icons.layers_rounded,
-                  count: allRecords.length,
-                  isSelected: _selectedFilterTankId == 'all',
-                  accentColor: AppConstants.accentCyan,
-                ),
-                const SizedBox(width: 8),
+          const SizedBox(height: 14),
 
-                // Chips for each individual tank
-                ...tanks.map((tank) {
-                  final count = allRecords.where((r) => r.tankId == tank.id).length;
-                  final color = _getTankColor(tank.id);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: _buildFilterChip(
-                      id: tank.id,
-                      label: tank.tankName,
-                      icon: _getTankIcon(tank.id),
-                      count: count,
-                      isSelected: _selectedFilterTankId == tank.id,
-                      accentColor: color,
-                    ),
-                  );
-                }),
-              ],
-            ),
+          // Horizontal Quick-Filter Clickable Buttons
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              // "All Tanks" Button
+              _buildFilterChip(
+                id: 'all',
+                label: 'All Tanks',
+                icon: Icons.layers_rounded,
+                count: allRecords.length,
+                isSelected: _selectedFilterTankId == 'all',
+                accentColor: AppConstants.accentCyan,
+              ),
+
+              // Individual Tank Buttons
+              ...tanks.map((tank) {
+                final count = allRecords.where((r) => r.tankId == tank.id).length;
+                final color = _getTankColor(tank.id);
+                return _buildFilterChip(
+                  id: tank.id,
+                  label: tank.tankName,
+                  icon: _getTankIcon(tank.id),
+                  count: count,
+                  isSelected: _selectedFilterTankId == tank.id,
+                  accentColor: color,
+                );
+              }),
+            ],
           ),
         ],
       ),
@@ -198,51 +269,109 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
     required bool isSelected,
     required Color accentColor,
   }) {
-    return InkWell(
-      onTap: () => setState(() => _selectedFilterTankId = id),
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? accentColor.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? accentColor : Colors.white.withValues(alpha: 0.12),
-            width: isSelected ? 1.6 : 1.0,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: isSelected ? accentColor : Colors.white60),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              ),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          setState(() {
+            _selectedFilterTankId = id;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: isSelected ? accentColor.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? accentColor : Colors.white.withValues(alpha: 0.12),
+              width: isSelected ? 1.8 : 1.0,
             ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isSelected ? accentColor.withValues(alpha: 0.4) : Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$count',
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: accentColor.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: isSelected ? accentColor : Colors.white70),
+              const SizedBox(width: 8),
+              Text(
+                label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white54,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isSelected ? accentColor.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACTIVE FILTER BANNER
+  // ---------------------------------------------------------------------------
+  Widget _buildActiveFilterBanner(Tank? tank, int matchCount) {
+    final color = _getTankColor(tank?.id ?? '');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(_getTankIcon(tank?.id ?? ''), color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Currently Viewing: ${tank?.tankName ?? "Tank"} ($matchCount cleaning logs)',
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Location: ${tank?.location ?? "Campus"} • Capacity: ${tank?.capacity.toStringAsFixed(0) ?? "5,000"} Liters',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Clear filter and show all tanks',
+            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+            onPressed: () => setState(() => _selectedFilterTankId = 'all'),
+          ),
+        ],
       ),
     );
   }
@@ -280,7 +409,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
             value: '${records.length} records',
             icon: Icons.fact_check_rounded,
             accentColor: AppConstants.accentCyan,
-            subtitle: _selectedFilterTankId == 'all' ? 'Across all campus tanks' : 'For this tank',
+            subtitle: _selectedFilterTankId == 'all' ? 'Across all campus tanks' : 'For selected tank',
           ),
         ),
         const SizedBox(width: 14),
@@ -374,27 +503,36 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Tank Pill Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: tankColor.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: tankColor.withValues(alpha: 0.35)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(tankIcon, size: 14, color: tankColor),
-                    const SizedBox(width: 6),
-                    Text(
-                      tankName,
-                      style: TextStyle(
-                        color: tankColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    // Clicking tank badge filters by this tank!
+                    setState(() => _selectedFilterTankId = item.tankId);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: tankColor.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: tankColor.withValues(alpha: 0.4)),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(tankIcon, size: 14, color: tankColor),
+                        const SizedBox(width: 6),
+                        Text(
+                          tankName,
+                          style: TextStyle(
+                            color: tankColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
 
