@@ -40,18 +40,36 @@ class SensorReading {
   }
 
   factory SensorReading.fromThingSpeakBackendJson(Map<String, dynamic> json, {String tankId = 'tank-main'}) {
+    double parseVal(dynamic v, double fallback) {
+      if (v == null) return fallback;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? fallback;
+    }
+
+    final tds = json.containsKey('field1') ? parseVal(json['field1'], 235.0) : parseVal(json['tds'], 235.0);
+    final ph = json.containsKey('field2') ? parseVal(json['field2'], 7.2) : parseVal(json['ph'], 7.2);
+    final temperature = json.containsKey('field3') ? parseVal(json['field3'], 26.5) : parseVal(json['temperature'], 26.5);
+    final turbidity = parseVal(json['turbidity'], 1.2);
+
+    DateTime ts;
+    if (json['created_at'] != null) {
+      ts = DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now();
+    } else if (json['timestamp'] != null) {
+      ts = DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now();
+    } else {
+      ts = DateTime.now();
+    }
+
     return SensorReading(
       id: json['entry_id']?.toString() ?? '1',
       deviceId: 'ESP32_THINGSPEAK',
       tankId: tankId,
-      timestamp: json['timestamp'] != null
-          ? DateTime.parse(json['timestamp'])
-          : DateTime.now(),
-      ph: (json['ph'] as num).toDouble(),
-      tds: (json['tds'] as num).toDouble(),
-      turbidity: (json['turbidity'] != null ? (json['turbidity'] as num).toDouble() : 1.2),
-      temperature: (json['temperature'] as num).toDouble(),
-      waterLevel: 78.0,
+      timestamp: ts,
+      ph: ph,
+      tds: tds,
+      turbidity: turbidity,
+      temperature: temperature,
+      waterLevel: parseVal(json['water_level'], 78.0),
     );
   }
 

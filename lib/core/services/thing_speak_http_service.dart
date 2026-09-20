@@ -28,9 +28,29 @@ class ThingSpeakHttpService {
   }
 
   Future<SensorReading> fetchLatestReading({String tankId = 'tank-main'}) async {
-    final url = Uri.parse('${AppConstants.apiBaseUrl}/api/v1/water-quality/latest');
+    // 1. Prioritize Direct ThingSpeak Cloud API (Real-time live feeds)
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final thingSpeakUrl = Uri.parse(
+        'https://api.thingspeak.com/channels/${AppConstants.thingSpeakChannelId}/feeds/last.json',
+      );
+      final response = await http.get(thingSpeakUrl).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data.containsKey('entry_id') && data['entry_id'] != null) {
+          final reading = SensorReading.fromThingSpeakBackendJson(data, tankId: tankId);
+          _lastFetchedReading = reading;
+          _streamController.add(reading);
+          return reading;
+        }
+      }
+    } catch (_) {
+      // Fall through to backend API if ThingSpeak direct call encounters network issue
+    }
+
+    // 2. Try configured Backend API endpoint (e.g., Render / localhost)
+    try {
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/api/v1/water-quality/latest');
+      final response = await http.get(url).timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = json.decode(response.body);
         final Map<String, dynamic> data = (body['data'] is Map<String, dynamic>)
@@ -40,45 +60,59 @@ class ThingSpeakHttpService {
         _lastFetchedReading = reading;
         _streamController.add(reading);
         return reading;
-      } else {
-        throw Exception('Server returned status code ${response.statusCode}');
       }
-    } catch (e) {
-      // Return last cached reading or fallback default if network unavailable
-      if (_lastFetchedReading != null) {
-        return _lastFetchedReading!;
-      }
-      final fallback = SensorReading(
-        id: 'fallback',
-        deviceId: 'ESP32_OFFLINE',
-        tankId: tankId,
-        timestamp: DateTime.now(),
-        ph: 7.2,
-        tds: 235.0,
-        turbidity: 1.2,
-        temperature: 26.5,
-        waterLevel: 78.0,
-      );
-      return fallback;
+    } catch (_) {}
+
+    // 3. Fallback to cached or baseline reading if offline
+    if (_lastFetchedReading != null) {
+      return _lastFetchedReading!;
     }
+    final fallback = SensorReading(
+      id: 'fallback',
+      deviceId: 'ESP32_OFFLINE',
+      tankId: tankId,
+      timestamp: DateTime.now(),
+      ph: 7.2,
+      tds: 235.0,
+      turbidity: 1.2,
+      temperature: 26.5,
+      waterLevel: 78.0,
+    );
+    return fallback;
   }
 
   Future<List<SensorReading>> fetchHistoricalReadings(String tankId, {int results = 50}) async {
-    final url = Uri.parse('${AppConstants.apiBaseUrl}/api/v1/water-quality/history?results=$results');
+    // 1. Prioritize Direct ThingSpeak Cloud API
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 8));
+      final thingSpeakUrl = Uri.parse(
+        'https://api.thingspeak.com/channels/${AppConstants.thingSpeakChannelId}/feeds.json?results=$results',
+      );
+      final response = await http.get(thingSpeakUrl).timeout(const Duration(seconds: 6));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonBody = json.decode(response.body);
+        final List<dynamic> feeds = jsonBody['feeds'] ?? [];
+        if (feeds.isNotEmpty) {
+          return feeds.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
+        }
+      }
+    } catch (_) {}
+
+    // 2. Try configured Backend API endpoint
+    try {
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/api/v1/water-quality/history?results=$results');
+      final response = await http.get(url).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonBody = json.decode(response.body);
         final List<dynamic> list = jsonBody['data'] ?? [];
-        return list.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
-      } else {
-        throw Exception('Failed to load history');
+        if (list.isNotEmpty) {
+          return list.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
+        }
       }
-    } catch (e) {
-      // If error/offline, return single fallback reading
-      final latest = await fetchLatestReading(tankId: tankId);
-      return [latest];
-    }
+    } catch (_) {}
+
+    // Fallback
+    final latest = await fetchLatestReading(tankId: tankId);
+    return [latest];
   }
 
   void dispose() {
