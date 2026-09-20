@@ -15,6 +15,8 @@ import time
 import urllib.request
 import urllib.parse
 import json
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 app = FastAPI(
     title="Smart Water Monitor AI & ESP32 API Engine",
@@ -291,8 +293,8 @@ def run_trend_and_anomaly_analysis(
 # API ROUTES
 # -----------------------------------------------------------------------------
 
-@app.get("/")
-def root():
+@app.get("/api")
+def api_status():
     return {
         "app": "Smart Water Monitor AI & ESP32 Engine",
         "status": "online",
@@ -467,8 +469,22 @@ def _parse_feed_item(item: dict) -> dict:
         "entry_id": entry_id
     }
 
+_web_build_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build", "web")
+_index_html_path = os.path.join(_web_build_dir, "index.html")
+
 @app.get("/")
 def root():
+    if os.path.isfile(_index_html_path):
+        return FileResponse(_index_html_path, media_type="text/html")
+    return {
+        "service": "Smart Water Monitor AI & ESP32 Telemetry API",
+        "status": "online",
+        "version": "1.0.0",
+        "docs_url": "/docs"
+    }
+
+@app.get("/api")
+def api_info():
     return {
         "service": "Smart Water Monitor AI & ESP32 Telemetry API",
         "status": "online",
@@ -565,6 +581,13 @@ def get_water_quality_status():
         "cache_age_seconds": round(time.time() - latest_cache["timestamp"], 1) if latest_cache["timestamp"] else None,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+# -----------------------------------------------------------------------------
+# STATIC FRONTEND SERVING (Flutter Web)
+# -----------------------------------------------------------------------------
+_web_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build", "web")
+if os.path.isdir(_web_dir):
+    app.mount("/", StaticFiles(directory=_web_dir, html=True), name="web")
 
 if __name__ == "__main__":
     import uvicorn
