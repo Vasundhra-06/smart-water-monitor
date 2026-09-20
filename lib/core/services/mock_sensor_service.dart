@@ -311,7 +311,7 @@ class MockSensorService {
     final List<SensorReading> list = [];
     final now = DateTime.now();
 
-    for (int i = 30; i >= 0; i--) {
+    for (int i = 90; i >= 0; i--) {
       final time = now.subtract(Duration(days: i));
 
       double ph = 7.2 + (_random.nextDouble() * 0.15 - 0.07);

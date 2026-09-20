@@ -22,25 +22,25 @@ class DashboardHistoricalGraph extends ConsumerStatefulWidget {
 
 class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGraph> {
   String _selectedRange = '30d'; // 'today', '7d', '30d', 'custom'
-  DateTimeRange? _customDateRange;
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
 
-  Future<void> _pickCustomRange() async {
+  String _formatDate(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')} ${_getMonthName(d.month)} ${d.year}';
+  }
+
+  Future<void> _pickStartDate(BuildContext context) async {
     final now = DateTime.now();
-    final picked = await showDateRangePicker(
+    final initial = _customStartDate ?? now.subtract(const Duration(days: 14));
+    final picked = await showDatePicker(
       context: context,
+      initialDate: initial,
       firstDate: now.subtract(const Duration(days: 365)),
-      lastDate: now.add(const Duration(days: 1)),
-      initialDateRange: _customDateRange ?? DateTimeRange(
-        start: now.subtract(const Duration(days: 14)),
-        end: now,
-      ),
-      helpText: 'SELECT CUSTOM DATE RANGE',
-      cancelText: 'CANCEL',
-      confirmText: 'APPLY',
+      lastDate: _customEndDate ?? now,
+      helpText: 'SELECT START DATE (FROM)',
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            scaffoldBackgroundColor: AppConstants.darkBackground,
             colorScheme: const ColorScheme.dark(
               primary: AppConstants.accentCyan,
               onPrimary: Colors.black,
@@ -55,10 +55,47 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
         );
       },
     );
-
     if (picked != null) {
       setState(() {
-        _customDateRange = picked;
+        _customStartDate = picked;
+        if (_customEndDate != null && _customStartDate!.isAfter(_customEndDate!)) {
+          _customEndDate = _customStartDate;
+        }
+        _selectedRange = 'custom';
+      });
+    }
+  }
+
+  Future<void> _pickEndDate(BuildContext context) async {
+    final now = DateTime.now();
+    final initial = _customEndDate ?? now;
+    final first = _customStartDate ?? now.subtract(const Duration(days: 365));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.isBefore(first) ? first : initial,
+      firstDate: first,
+      lastDate: now,
+      helpText: 'SELECT END DATE (TO)',
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppConstants.accentCyan,
+              onPrimary: Colors.black,
+              surface: AppConstants.darkCardBackground,
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: AppConstants.darkBackground,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _customEndDate = picked;
         _selectedRange = 'custom';
       });
     }
@@ -79,9 +116,11 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
       final cutoff = now.subtract(const Duration(days: 7));
       final filtered = list.where((r) => r.timestamp.isAfter(cutoff)).toList();
       return filtered.isNotEmpty ? filtered : list.take(14).toList();
-    } else if (_selectedRange == 'custom' && _customDateRange != null) {
-      final start = DateTime(_customDateRange!.start.year, _customDateRange!.start.month, _customDateRange!.start.day, 0, 0, 0);
-      final end = DateTime(_customDateRange!.end.year, _customDateRange!.end.month, _customDateRange!.end.day, 23, 59, 59);
+    } else if (_selectedRange == 'custom') {
+      final s = _customStartDate ?? now.subtract(const Duration(days: 14));
+      final e = _customEndDate ?? now;
+      final start = DateTime(s.year, s.month, s.day, 0, 0, 0);
+      final end = DateTime(e.year, e.month, e.day, 23, 59, 59);
       final filtered = list.where((r) => !r.timestamp.isBefore(start) && !r.timestamp.isAfter(end)).toList();
       return filtered;
     } else {
@@ -168,21 +207,46 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                   _buildRangeButton('Today', 'today'),
                   _buildRangeButton('7 Days', '7d'),
                   _buildRangeButton('30 Days', '30d'),
-                  _buildCustomRangeButton(),
+                  _buildCustomButton(),
                 ],
               ),
             ],
           ),
+
+          // If Custom is selected: Show interactive Start Date (From) to End Date (To) selector bar
+          if (_selectedRange == 'custom') ...[
+            const SizedBox(height: 14),
+            _buildCustomDateRangeSelector(context, readings.length),
+          ],
+
           const SizedBox(height: 12),
 
-          // Zone Badges Legend
+          // Zone Badges Legend & Scope Indicator
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildZoneDot(const Color(0xFF00E676), 'Safe (70–100)'),
-              const SizedBox(width: 14),
-              _buildZoneDot(const Color(0xFFFFB300), 'Warning (40–69)'),
-              const SizedBox(width: 14),
-              _buildZoneDot(const Color(0xFFFF3D00), 'Danger (<40)'),
+              Row(
+                children: [
+                  _buildZoneDot(const Color(0xFF00E676), 'Safe (70–100)'),
+                  const SizedBox(width: 14),
+                  _buildZoneDot(const Color(0xFFFFB300), 'Warning (40–69)'),
+                  const SizedBox(width: 14),
+                  _buildZoneDot(const Color(0xFFFF3D00), 'Danger (<40)'),
+                ],
+              ),
+              if (_selectedRange == 'custom')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppConstants.accentCyan.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    'From: ${_formatDate(_customStartDate ?? DateTime.now().subtract(const Duration(days: 14)))}  To: ${_formatDate(_customEndDate ?? DateTime.now())}',
+                    style: const TextStyle(color: AppConstants.accentCyan, fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -199,15 +263,18 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                         const SizedBox(height: 8),
                         Text(
                           _selectedRange == 'custom'
-                              ? 'No telemetry data recorded within selected date range'
-                              : 'No historical telemetry available',
+                              ? 'No telemetry data recorded from ${_formatDate(_customStartDate ?? DateTime.now())} to ${_formatDate(_customEndDate ?? DateTime.now())}'
+                              : 'No historical telemetry available for this range',
                           style: const TextStyle(color: Colors.white38, fontSize: 12),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
                   )
                 : LineChart(
                     LineChartData(
+                      minX: 0,
+                      maxX: (spots.length > 1 ? (spots.length - 1).toDouble() : 1.0),
                       minY: 0,
                       maxY: 100,
                       gridData: FlGridData(
@@ -378,17 +445,17 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
     );
   }
 
-  Widget _buildCustomRangeButton() {
+  Widget _buildCustomButton() {
     final isSelected = _selectedRange == 'custom';
-    String label = 'Custom';
-    if (isSelected && _customDateRange != null) {
-      final s = _customDateRange!.start;
-      final e = _customDateRange!.end;
-      label = '${s.day} ${_getMonthName(s.month)} - ${e.day} ${_getMonthName(e.month)}';
-    }
-
     return InkWell(
-      onTap: _pickCustomRange,
+      onTap: () {
+        final now = DateTime.now();
+        setState(() {
+          _selectedRange = 'custom';
+          _customStartDate ??= now.subtract(const Duration(days: 14));
+          _customEndDate ??= now;
+        });
+      },
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -407,7 +474,7 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
             ),
             const SizedBox(width: 4),
             Text(
-              label,
+              'Custom',
               style: TextStyle(
                 color: isSelected ? Colors.black : Colors.white70,
                 fontSize: 10,
@@ -417,6 +484,124 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCustomDateRangeSelector(BuildContext context, int count) {
+    final now = DateTime.now();
+    final start = _customStartDate ?? now.subtract(const Duration(days: 14));
+    final end = _customEndDate ?? now;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppConstants.darkSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // Start Date Picker Box
+              _buildDateBox(
+                label: 'START DATE (FROM)',
+                dateText: _formatDate(start),
+                onTap: () => _pickStartDate(context),
+              ),
+              const Icon(Icons.arrow_forward_rounded, color: AppConstants.accentCyan, size: 16),
+              // End Date Picker Box
+              _buildDateBox(
+                label: 'END DATE (TO)',
+                dateText: _formatDate(end),
+                onTap: () => _pickEndDate(context),
+              ),
+              // Quick preset chips
+              Wrap(
+                spacing: 6,
+                children: [
+                  _buildQuickPresetChip('Last 7 Days', 7),
+                  _buildQuickPresetChip('Last 14 Days', 14),
+                  _buildQuickPresetChip('Last 30 Days', 30),
+                  _buildQuickPresetChip('Last 60 Days', 60),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.show_chart_rounded, color: AppConstants.accentCyan, size: 13),
+              const SizedBox(width: 6),
+              Text(
+                'Showing water quality telemetry from ${_formatDate(start)} to ${_formatDate(end)} ($count data points)',
+                style: const TextStyle(color: Colors.white70, fontSize: 11),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateBox({required String label, required String dateText, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppConstants.darkCardBackground,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white54, fontSize: 8, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_today_rounded, size: 12, color: AppConstants.accentCyan),
+                const SizedBox(width: 6),
+                Text(
+                  dateText,
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_drop_down, size: 14, color: Colors.white54),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickPresetChip(String label, int days) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 10, color: Colors.white70)),
+      backgroundColor: AppConstants.darkCardBackground,
+      side: const BorderSide(color: AppConstants.darkCardBorder),
+      padding: EdgeInsets.zero,
+      visualDensity: VisualDensity.compact,
+      onPressed: () {
+        final now = DateTime.now();
+        setState(() {
+          _customStartDate = now.subtract(Duration(days: days));
+          _customEndDate = now;
+          _selectedRange = 'custom';
+        });
+      },
     );
   }
 
@@ -444,3 +629,4 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
     );
   }
 }
+
