@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/mock_sensor_service.dart';
+import '../../../core/services/thing_speak_http_service.dart';
 import '../../../data/models/sensor_reading.dart';
 
 class DashboardHistoricalGraph extends ConsumerStatefulWidget {
@@ -320,11 +321,11 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
         r.timestamp.month == now.month &&
         r.timestamp.year == now.year
       ).toList();
-      return todayList.isNotEmpty ? todayList : list.take(6).toList();
+      return todayList.isNotEmpty ? todayList : list;
     } else if (_selectedRange == '7d') {
       final cutoff = now.subtract(const Duration(days: 7));
       final filtered = list.where((r) => r.timestamp.isAfter(cutoff)).toList();
-      return filtered.isNotEmpty ? filtered : list.take(14).toList();
+      return filtered.isNotEmpty ? filtered : list;
     } else if (_selectedRange == 'custom') {
       final s = _customStartDate ?? now.subtract(const Duration(days: 7));
       final e = _customEndDate ?? now;
@@ -341,9 +342,12 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
 
   @override
   Widget build(BuildContext context) {
+    final streamList = ref.watch(historicalReadingsStreamProvider(widget.tankId)).value;
     final readingsAsync = ref.watch(historicalReadingsProvider(widget.tankId));
-    final asyncList = readingsAsync.value;
-    final rawList = (asyncList != null && asyncList.length > 1)
+    final asyncList = (streamList != null && streamList.isNotEmpty)
+        ? streamList
+        : (readingsAsync.value ?? ThingSpeakHttpService.instance.cachedHistory);
+    final rawList = (asyncList.isNotEmpty)
         ? asyncList
         : MockSensorService.instance.getReadingsForTank(widget.tankId);
     final readings = _filterReadings(rawList);
@@ -524,7 +528,16 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                               int index = val.toInt();
                               if (index >= 0 && index < readings.length) {
                                 final d = readings[index].timestamp;
-                                return Text('${d.day} ${_getMonthName(d.month)}', style: const TextStyle(color: Colors.white38, fontSize: 9));
+                                final isSameDay = readings.isNotEmpty &&
+                                    readings.first.timestamp.day == readings.last.timestamp.day &&
+                                    readings.first.timestamp.month == readings.last.timestamp.month;
+                                if (isSameDay) {
+                                  final hh = d.hour.toString().padLeft(2, '0');
+                                  final mm = d.minute.toString().padLeft(2, '0');
+                                  return Text('$hh:$mm', style: const TextStyle(color: Colors.white38, fontSize: 9));
+                                } else {
+                                  return Text('${d.day} ${_getMonthName(d.month)}', style: const TextStyle(color: Colors.white38, fontSize: 9));
+                                }
                               }
                               return const SizedBox();
                             },
@@ -556,8 +569,10 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                               int idx = spot.x.toInt();
                               if (idx >= 0 && idx < readings.length) {
                                 final r = readings[idx];
+                                final hh = r.timestamp.hour.toString().padLeft(2, '0');
+                                final mm = r.timestamp.minute.toString().padLeft(2, '0');
                                 return LineTooltipItem(
-                                  '${r.timestamp.day} ${_getMonthName(r.timestamp.month)} • Score: ${r.waterQualityScore}/100\npH: ${r.ph} | Turb: ${r.turbidity.toStringAsFixed(1)} | TDS: ${r.tds.toInt()}',
+                                  '${r.timestamp.day} ${_getMonthName(r.timestamp.month)} $hh:$mm\nScore: ${r.waterQualityScore}/100\npH: ${r.ph} | TDS: ${r.tds.toInt()} ppm | Temp: ${r.temperature.toStringAsFixed(1)}°C',
                                   TextStyle(
                                     color: AppConstants.getScoreColor(r.waterQualityScore),
                                     fontWeight: FontWeight.bold,

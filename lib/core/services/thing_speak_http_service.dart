@@ -13,6 +13,12 @@ class ThingSpeakHttpService {
   final _streamController = StreamController<SensorReading>.broadcast();
   Stream<SensorReading> get liveSensorStream => _streamController.stream;
 
+  final _historyStreamController = StreamController<List<SensorReading>>.broadcast();
+  Stream<List<SensorReading>> get historyStream => _historyStreamController.stream;
+
+  List<SensorReading> _cachedHistory = [];
+  List<SensorReading> get cachedHistory => List.unmodifiable(_cachedHistory);
+
   Timer? _pollingTimer;
   SensorReading? _lastFetchedReading;
   SensorReading? get latestCachedReading => _lastFetchedReading;
@@ -20,10 +26,15 @@ class ThingSpeakHttpService {
   void _startPolling() {
     // Initial fetch immediately
     fetchLatestReading();
+    fetchHistoricalReadings('tank-main');
 
-    // Poll Python backend every 15 seconds to respect ThingSpeak rates
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      fetchLatestReading();
+    // Poll ThingSpeak every 15 seconds to respect ThingSpeak rates
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      final reading = await fetchLatestReading();
+      // If history is empty or a new reading entry ID has arrived, sync the graph points immediately
+      if (_cachedHistory.isEmpty || (_cachedHistory.isNotEmpty && _cachedHistory.last.id != reading.id)) {
+        await fetchHistoricalReadings('tank-main');
+      }
     });
   }
 
@@ -92,7 +103,12 @@ class ThingSpeakHttpService {
         final Map<String, dynamic> jsonBody = json.decode(response.body);
         final List<dynamic> feeds = jsonBody['feeds'] ?? [];
         if (feeds.isNotEmpty) {
-          return feeds.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
+          final list = feeds
+              .map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId))
+              .toList();
+          _cachedHistory = list;
+          _historyStreamController.add(list);
+          return list;
         }
       }
     } catch (_) {}
@@ -105,10 +121,17 @@ class ThingSpeakHttpService {
         final Map<String, dynamic> jsonBody = json.decode(response.body);
         final List<dynamic> list = jsonBody['data'] ?? [];
         if (list.isNotEmpty) {
-          return list.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
+          final listMapped = list.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
+          _cachedHistory = listMapped;
+          _historyStreamController.add(listMapped);
+          return listMapped;
         }
       }
     } catch (_) {}
+
+    if (_cachedHistory.isNotEmpty) {
+      return _cachedHistory;
+    }
 
     // Fallback
     final latest = await fetchLatestReading(tankId: tankId);
@@ -118,5 +141,6 @@ class ThingSpeakHttpService {
   void dispose() {
     _pollingTimer?.cancel();
     _streamController.close();
+    _historyStreamController.close();
   }
 }

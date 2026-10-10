@@ -53,9 +53,9 @@ class SensorReading {
 
     DateTime ts;
     if (json['created_at'] != null) {
-      ts = DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now();
+      ts = (DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now()).toLocal();
     } else if (json['timestamp'] != null) {
-      ts = DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now();
+      ts = (DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now()).toLocal();
     } else {
       ts = DateTime.now();
     }

@@ -12,6 +12,7 @@ import '../../data/repositories/cleaning_repository.dart';
 import '../../data/repositories/ai_repository.dart';
 import '../constants/app_constants.dart';
 import '../services/mock_sensor_service.dart';
+import '../services/thing_speak_http_service.dart';
 
 // Repository Providers
 final sensorRepositoryProvider = Provider<ISensorRepository>((ref) => SensorRepository());
@@ -51,6 +52,10 @@ final deviceForTankProvider = FutureProvider.family<Device?, String>((ref, tankI
 final historicalReadingsProvider = FutureProvider.family<List<SensorReading>, String>((ref, tankId) async {
   final repo = ref.watch(sensorRepositoryProvider);
   return repo.getHistoricalReadings(tankId);
+});
+
+final historicalReadingsStreamProvider = StreamProvider.family<List<SensorReading>, String>((ref, tankId) {
+  return ThingSpeakHttpService.instance.historyStream;
 });
 
 final liveSensorStreamProvider = StreamProvider<SensorReading>((ref) {
