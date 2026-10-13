@@ -213,7 +213,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildSensorCard(context, 'Turbidity', '${reading.turbidity.toStringAsFixed(2)} NTU', reading.turbidity > 2.5 ? 'Abnormal' : 'Good', Icons.filter_hdr_rounded, reading.turbidity > 2.5 ? AppConstants.colorCritical : AppConstants.colorGood, 'Turbidity', reading.turbidity, 'NTU')),
+            Expanded(
+              child: _buildSensorCard(
+                context,
+                'Water Quality',
+                '${reading.waterQualityScore}%',
+                reading.qualityZone,
+                Icons.verified_rounded,
+                AppConstants.getScoreColor(reading.waterQualityScore),
+                'Water Quality',
+                reading.waterQualityScore.toDouble(),
+                '%',
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(child: _buildSensorCard(context, 'Temperature', '${reading.temperature.toStringAsFixed(1)} °C', 'Good', Icons.thermostat_rounded, AppConstants.colorGood, 'Temperature', reading.temperature, '°C')),
           ],
