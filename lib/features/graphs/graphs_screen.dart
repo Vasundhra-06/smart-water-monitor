@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/mock_sensor_service.dart';
+import '../../core/services/thing_speak_http_service.dart';
 import '../../core/widgets/notification_bell_button.dart';
 import '../../data/models/sensor_reading.dart';
 import '../dashboard/widgets/dashboard_historical_graph.dart';
@@ -18,6 +19,89 @@ class GraphsScreen extends ConsumerStatefulWidget {
 }
 
 class _GraphsScreenState extends ConsumerState<GraphsScreen> {
+  Future<void> _confirmResetDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppConstants.darkCardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppConstants.darkCardBorder),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.restart_alt_rounded, color: Color(0xFFEF4444), size: 22),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Reset Sensors to 0?',
+              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Text(
+          'This will clear the current graph and reset all sensor values (pH, TDS, Quality, Temp) to 0.\n\nOnce you dip your sensor into water, fresh real-time readings will immediately stream and plot in the graph.',
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            icon: const Icon(Icons.check, size: 16),
+            label: const Text('Confirm Reset', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ThingSpeakHttpService.instance.resetAllData();
+      ref.invalidate(historicalReadingsStreamProvider('tank-main'));
+      ref.invalidate(historicalReadingsProvider('tank-main'));
+      ref.invalidate(liveSensorStreamProvider);
+      ref.invalidate(latestReadingProvider('tank-main'));
+      setState(() {});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF0F1B33),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: AppConstants.accentCyan),
+            ),
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: AppConstants.accentCyan, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Sensors reset to 0 & graph cleared! Dip sensor into water to begin streaming.',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final selectedTank = ref.watch(selectedTankProvider);
@@ -25,7 +109,8 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
     final activeTank = selectedTank ?? MockSensorService.instance.getTanks().first;
 
     final latestReading = ref.watch(liveSensorStreamProvider).value ??
-        MockSensorService.instance.getLatestReading(activeTank.id);
+        (ThingSpeakHttpService.instance.latestCachedReading ??
+            SensorReading.zero(tankId: activeTank.id));
 
     PreferredSizeWidget appBar = AppBar(
       backgroundColor: AppConstants.darkCardBackground,
@@ -106,9 +191,29 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
           ),
         ],
       ),
-      actions: const [
-        NotificationBellButton(),
-        SizedBox(width: 12),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: ElevatedButton.icon(
+            onPressed: () => _confirmResetDialog(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.18),
+              foregroundColor: const Color(0xFFEF4444),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFFEF4444)),
+            label: const Text(
+              'Reset',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        const NotificationBellButton(),
+        const SizedBox(width: 12),
       ],
     );
 
@@ -150,13 +255,26 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
   }
 
   Widget _buildSensorCardsGrid(BuildContext context, SensorReading reading) {
+    final isZero = reading.isZero;
+
+    final phStatus = isZero ? 'Standby' : (reading.ph >= 6.5 && reading.ph <= 8.5 ? 'Good' : 'Attention');
+    final phColor = isZero ? Colors.white38 : (reading.ph >= 6.5 && reading.ph <= 8.5 ? AppConstants.colorGood : AppConstants.colorAttention);
+
+    final tdsStatus = isZero ? 'Standby' : (reading.tds > 400 ? 'Attention' : 'Good');
+    final tdsColor = isZero ? Colors.white38 : (reading.tds > 400 ? AppConstants.colorAttention : AppConstants.colorGood);
+
+    final qualityColor = isZero ? Colors.white38 : AppConstants.getScoreColor(reading.waterQualityScore);
+
+    final tempStatus = isZero ? 'Standby' : 'Good';
+    final tempColor = isZero ? Colors.white38 : AppConstants.colorGood;
+
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _buildSensorCard(context, 'pH Level', '${reading.ph}', 'Good', Icons.opacity, AppConstants.colorGood, 'pH', reading.ph, '')),
+            Expanded(child: _buildSensorCard(context, 'pH Level', isZero ? '0.0' : '${reading.ph}', phStatus, Icons.opacity, phColor, 'pH', reading.ph, '')),
             const SizedBox(width: 12),
-            Expanded(child: _buildSensorCard(context, 'TDS', '${reading.tds.toStringAsFixed(0)} ppm', reading.tds > 400 ? 'Attention' : 'Good', Icons.grain_rounded, reading.tds > 400 ? AppConstants.colorAttention : AppConstants.colorGood, 'TDS', reading.tds, 'ppm')),
+            Expanded(child: _buildSensorCard(context, 'TDS', isZero ? '0 ppm' : '${reading.tds.toStringAsFixed(0)} ppm', tdsStatus, Icons.grain_rounded, tdsColor, 'TDS', reading.tds, 'ppm')),
           ],
         ),
         const SizedBox(height: 12),
@@ -166,17 +284,17 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
               child: _buildSensorCard(
                 context,
                 'Water Quality',
-                '${reading.waterQualityScore}%',
-                reading.qualityZone,
+                isZero ? '0%' : '${reading.waterQualityScore}%',
+                isZero ? 'Standby' : reading.qualityZone,
                 Icons.verified_rounded,
-                AppConstants.getScoreColor(reading.waterQualityScore),
+                qualityColor,
                 'Water Quality',
                 reading.waterQualityScore.toDouble(),
                 '%',
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: _buildSensorCard(context, 'Temperature', '${reading.temperature.toStringAsFixed(1)} °C', 'Good', Icons.thermostat_rounded, AppConstants.colorGood, 'Temperature', reading.temperature, '°C')),
+            Expanded(child: _buildSensorCard(context, 'Temperature', isZero ? '0.0 °C' : '${reading.temperature.toStringAsFixed(1)} °C', tempStatus, Icons.thermostat_rounded, tempColor, 'Temperature', reading.temperature, '°C')),
           ],
         ),
       ],

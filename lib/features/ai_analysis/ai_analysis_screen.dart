@@ -36,7 +36,7 @@ class AIAnalysisScreen extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: AppConstants.darkCardBackground,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: scoreColor.withOpacity(0.5), width: 1.5),
+                border: Border.all(color: scoreColor.withValues(alpha: 0.5), width: 1.5),
               ),
               child: Column(
                 children: [
@@ -103,7 +103,7 @@ class AIAnalysisScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: ai.cleaningRecommendation ? AppConstants.colorCritical.withOpacity(0.15) : AppConstants.colorGood.withOpacity(0.15),
+                color: ai.cleaningRecommendation ? AppConstants.colorCritical.withValues(alpha: 0.15) : AppConstants.colorGood.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: ai.cleaningRecommendation ? AppConstants.colorCritical : AppConstants.colorGood),
               ),
@@ -154,7 +154,7 @@ class AIAnalysisScreen extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: AppConstants.darkCardBackground, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withOpacity(0.4))),
+      decoration: BoxDecoration(color: AppConstants.darkCardBackground, borderRadius: BorderRadius.circular(12), border: Border.all(color: color.withValues(alpha: 0.4))),
       child: Row(
         children: [
           Icon(Icons.report_problem_outlined, color: color, size: 20),

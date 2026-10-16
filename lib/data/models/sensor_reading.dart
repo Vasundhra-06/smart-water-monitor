@@ -75,6 +75,22 @@ class SensorReading {
     );
   }
 
+  factory SensorReading.zero({String tankId = 'tank-main'}) {
+    return SensorReading(
+      id: '0',
+      deviceId: 'ESP32_STANDBY',
+      tankId: tankId,
+      timestamp: DateTime.now(),
+      ph: 0.0,
+      tds: 0.0,
+      turbidity: 0.0,
+      temperature: 0.0,
+      waterLevel: 0.0,
+    );
+  }
+
+  bool get isZero => ph == 0.0 && tds == 0.0 && temperature == 0.0;
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -90,14 +106,27 @@ class SensorReading {
   }
 
   WaterQualityScoreResult get scoreAnalysis {
+    if (isZero) {
+      return WaterQualityScoreResult(
+        score: 0,
+        status: 'Standby',
+        parameterImpacts: {},
+        sortedDeterioratingParameters: [],
+        primaryContributorName: 'None',
+        aiSummary: 'Sensors reset to zero. Dip sensor into water to begin streaming live analysis.',
+        inspectionRecommended: false,
+      );
+    }
     return WaterQualityScoringService.instance.calculateWaterQualityScore(this);
   }
 
   int get waterQualityScore {
+    if (isZero) return 0;
     return scoreAnalysis.score;
   }
 
   String get qualityZone {
+    if (isZero) return 'Standby';
     return scoreAnalysis.status;
   }
 }

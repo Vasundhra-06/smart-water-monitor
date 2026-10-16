@@ -346,22 +346,27 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
     final asyncList = (streamList != null && streamList.isNotEmpty)
         ? streamList
         : (readingsAsync.value ?? ThingSpeakHttpService.instance.cachedHistory);
+
+    final isReset = ThingSpeakHttpService.instance.isResetMode;
     // Use strictly real telemetry data - never inject mock historical sine waves
-    final rawList = (asyncList.isNotEmpty)
-        ? asyncList
-        : (ThingSpeakHttpService.instance.latestCachedReading != null
-            ? [ThingSpeakHttpService.instance.latestCachedReading!]
-            : <SensorReading>[]);
-    final readings = _filterReadings(rawList);
+    final rawList = isReset
+        ? <SensorReading>[]
+        : ((asyncList.isNotEmpty)
+            ? asyncList
+            : (ThingSpeakHttpService.instance.latestCachedReading != null &&
+                    !ThingSpeakHttpService.instance.latestCachedReading!.isZero
+                ? [ThingSpeakHttpService.instance.latestCachedReading!]
+                : <SensorReading>[]));
+    final readings = isReset ? <SensorReading>[] : _filterReadings(rawList);
 
     double sumScore = 0;
-    int minScore = 100;
+    int minScore = readings.isEmpty ? 0 : 100;
     for (var r in readings) {
       final s = r.waterQualityScore;
       if (s < minScore) minScore = s;
       sumScore += s;
     }
-    final avgScore = readings.isNotEmpty ? (sumScore / readings.length).round() : 85;
+    final avgScore = readings.isNotEmpty ? (sumScore / readings.length).round() : 0;
 
     final spots = <FlSpot>[];
     for (int i = 0; i < readings.length; i++) {
@@ -371,8 +376,8 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
       spots.add(FlSpot(1, spots[0].y));
     }
 
-    final latestScore = readings.isNotEmpty ? readings.last.waterQualityScore : 85;
-    final lineGradientColor = AppConstants.getScoreColor(latestScore);
+    final latestScore = readings.isNotEmpty ? readings.last.waterQualityScore : 0;
+    final lineGradientColor = readings.isEmpty ? Colors.white38 : AppConstants.getScoreColor(latestScore);
 
     return Container(
       decoration: BoxDecoration(
@@ -432,6 +437,36 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                 _buildRangeButton('30 Days', '30d'),
                 const SizedBox(width: 6),
                 _buildCustomButton(),
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: () async {
+                    await ThingSpeakHttpService.instance.resetAllData();
+                    ref.invalidate(historicalReadingsStreamProvider(widget.tankId));
+                    ref.invalidate(historicalReadingsProvider(widget.tankId));
+                    ref.invalidate(liveSensorStreamProvider);
+                    setState(() {});
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.refresh_rounded, size: 12, color: Color(0xFFEF4444)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Reset to 0',
+                          style: TextStyle(color: Color(0xFFEF4444), fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -484,13 +519,24 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.event_busy_rounded, color: Colors.white24, size: 36),
-                        const SizedBox(height: 8),
-                        Text(
-                          _selectedRange == 'custom'
-                              ? 'No telemetry data recorded for selected range'
-                              : 'No historical telemetry available for this range',
-                          style: const TextStyle(color: Colors.white38, fontSize: 12),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppConstants.accentCyan.withValues(alpha: 0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.3)),
+                          ),
+                          child: const Icon(Icons.waves_rounded, color: AppConstants.accentCyan, size: 36),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'System in Standby (All Values at 0)',
+                          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Ready for new testing. Dip your sensor into water to begin streaming live graph.',
+                          style: TextStyle(color: Colors.white60, fontSize: 12),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -648,9 +694,25 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _buildSummaryStat('Average Quality', '$avgScore / 100', AppConstants.getScoreColor(avgScore)),
-                _buildSummaryStat('Lowest Recorded', '$minScore / 100', AppConstants.getScoreColor(minScore)),
-                _buildSummaryStat('Trend Direction', avgScore >= 75 ? 'Optimal Stable' : (avgScore >= 50 ? 'Moderate' : 'Deteriorating'), avgScore >= 75 ? const Color(0xFF00E676) : const Color(0xFFFFB300)),
+                _buildSummaryStat(
+                  'Average Quality',
+                  readings.isEmpty ? '0 / 100' : '$avgScore / 100',
+                  readings.isEmpty ? Colors.white38 : AppConstants.getScoreColor(avgScore),
+                ),
+                _buildSummaryStat(
+                  'Lowest Recorded',
+                  readings.isEmpty ? '0 / 100' : '$minScore / 100',
+                  readings.isEmpty ? Colors.white38 : AppConstants.getScoreColor(minScore),
+                ),
+                _buildSummaryStat(
+                  'Trend Direction',
+                  readings.isEmpty
+                      ? 'Standby (Reset)'
+                      : (avgScore >= 75 ? 'Optimal Stable' : (avgScore >= 50 ? 'Moderate' : 'Deteriorating')),
+                  readings.isEmpty
+                      ? Colors.white38
+                      : (avgScore >= 75 ? const Color(0xFF00E676) : const Color(0xFFFFB300)),
+                ),
               ],
             ),
           ),
