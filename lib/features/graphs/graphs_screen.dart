@@ -46,59 +46,69 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
             child: const Icon(Icons.water_drop_rounded, color: AppConstants.accentCyan, size: 20),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(AppConstants.appName, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
-              Row(
-                children: [
-                  DropdownButton<String>(
-                    value: activeTank.id,
-                    dropdownColor: AppConstants.darkSurface,
-                    underline: const SizedBox(),
-                    isDense: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: AppConstants.accentCyan),
-                    items: (tanksAsync.value ?? [activeTank]).map((tank) {
-                      return DropdownMenuItem<String>(
-                        value: tank.id,
-                        child: Text(
-                          tank.tankName,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (id) {
-                      if (id != null) {
-                        final chosen = (tanksAsync.value ?? []).firstWhere((t) => t.id == id, orElse: () => activeTank);
-                        ref.read(selectedTankProvider.notifier).state = chosen;
-                      }
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppConstants.appName,
+                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: DropdownButton<String>(
+                        value: activeTank.id,
+                        dropdownColor: AppConstants.darkSurface,
+                        underline: const SizedBox(),
+                        isDense: true,
+                        icon: const Icon(Icons.arrow_drop_down, color: AppConstants.accentCyan),
+                        items: (tanksAsync.value ?? [activeTank]).map((tank) {
+                          return DropdownMenuItem<String>(
+                            value: tank.id,
+                            child: Text(
+                              tank.tankName,
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (id) {
+                          if (id != null) {
+                            final chosen = (tanksAsync.value ?? []).firstWhere((t) => t.id == id, orElse: () => activeTank);
+                            ref.read(selectedTankProvider.notifier).state = chosen;
+                          }
+                        },
+                      ),
                     ),
-                    child: const Row(
-                      children: [
-                        CircleAvatar(radius: 3, backgroundColor: Colors.greenAccent),
-                        SizedBox(width: 4),
-                        Text('Live', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(radius: 3, backgroundColor: Colors.greenAccent),
+                          SizedBox(width: 4),
+                          Text('Live', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      actions: [
-        const NotificationBellButton(),
-        const SizedBox(width: 12),
+      actions: const [
+        NotificationBellButton(),
+        SizedBox(width: 12),
       ],
     );
 

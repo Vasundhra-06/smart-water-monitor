@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_constants.dart';
 
 class RegisterScreen extends StatefulWidget {

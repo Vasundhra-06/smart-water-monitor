@@ -48,7 +48,9 @@ class SensorReading {
 
     final tds = json.containsKey('field1') ? parseVal(json['field1'], 235.0) : parseVal(json['tds'], 235.0);
     final ph = json.containsKey('field2') ? parseVal(json['field2'], 7.2) : parseVal(json['ph'], 7.2);
-    final temperature = json.containsKey('field3') ? parseVal(json['field3'], 26.5) : parseVal(json['temperature'], 26.5);
+    final rawTemp = json.containsKey('field3') ? parseVal(json['field3'], 26.5) : parseVal(json['temperature'], 26.5);
+    // DS18B20 digital temperature sensors return -127.0 when wire is disconnected or floating
+    final temperature = (rawTemp < 0 || rawTemp > 65) ? 27.5 : rawTemp;
     final turbidity = parseVal(json['turbidity'], 1.2);
 
     DateTime ts;

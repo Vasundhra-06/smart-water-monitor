@@ -39,21 +39,37 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
     return Scaffold(
       backgroundColor: AppConstants.darkBackground,
       appBar: AppBar(
-        title: const Text('Tank Cleaning History & Logs'),
+        title: Builder(
+          builder: (context) {
+            final isNarrow = MediaQuery.of(context).size.width < 500;
+            return Text(
+              isNarrow ? 'Cleaning Logs' : 'Tank Cleaning History & Logs',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            );
+          },
+        ),
         actions: [
           const NotificationBellButton(),
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
-            child: ElevatedButton.icon(
-              onPressed: () => context.push('/record-cleaning'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.accentCyan,
-                foregroundColor: Colors.black87,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: const Icon(Icons.add_task_rounded, size: 18),
-              label: const Text('Record Cleaning', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            child: Builder(
+              builder: (context) {
+                final isNarrow = MediaQuery.of(context).size.width < 450;
+                return ElevatedButton.icon(
+                  onPressed: () => context.push('/record-cleaning'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.accentCyan,
+                    foregroundColor: Colors.black87,
+                    padding: EdgeInsets.symmetric(horizontal: isNarrow ? 10 : 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.add_task_rounded, size: 16),
+                  label: Text(
+                    isNarrow ? 'Record' : 'Record Cleaning',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -287,7 +303,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // SUMMARY KPI STATISTICS CARDS
+  // SUMMARY KPI STATISTICS CARDS (RESPONSIVE)
   // ---------------------------------------------------------------------------
   Widget _buildSummaryStats(List<Tank> tanks, List<CleaningRecord> records) {
     final now = DateTime.now();
@@ -311,38 +327,53 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
       }
     }
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildMetricTile(
-            title: 'TOTAL LOGGED EVENTS',
-            value: '${records.length} records',
-            icon: Icons.fact_check_rounded,
-            accentColor: AppConstants.accentCyan,
-            subtitle: _selectedFilterTankId == 'all' ? 'Across all campus tanks' : 'For selected tank',
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _buildMetricTile(
-            title: 'MOST RECENT CLEANING',
-            value: mostRecentDays != null ? '$mostRecentDays days ago' : 'No records',
-            icon: Icons.history_rounded,
-            accentColor: AppConstants.colorGood,
-            subtitle: mostRecentTank,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _buildMetricTile(
-            title: 'OLDEST SINCE CLEANED',
-            value: overdueTank != null ? '${overdueTank.daysSinceCleaning} days ago' : 'N/A',
-            icon: Icons.warning_amber_rounded,
-            accentColor: (maxDays > 20) ? AppConstants.colorCritical : AppConstants.colorAttention,
-            subtitle: overdueTank?.tankName ?? 'All up-to-date',
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 650;
+        final totalTile = _buildMetricTile(
+          title: 'TOTAL LOGGED EVENTS',
+          value: '${records.length} records',
+          icon: Icons.fact_check_rounded,
+          accentColor: AppConstants.accentCyan,
+          subtitle: _selectedFilterTankId == 'all' ? 'Across all campus tanks' : 'For selected tank',
+        );
+        final recentTile = _buildMetricTile(
+          title: 'MOST RECENT CLEANING',
+          value: mostRecentDays != null ? '$mostRecentDays days ago' : 'No records logged',
+          icon: Icons.history_rounded,
+          accentColor: AppConstants.colorGood,
+          subtitle: mostRecentTank,
+        );
+        final oldestTile = _buildMetricTile(
+          title: 'OLDEST SINCE CLEANED',
+          value: overdueTank != null ? '${overdueTank.daysSinceCleaning} days ago' : 'N/A',
+          icon: Icons.warning_amber_rounded,
+          accentColor: (maxDays > 20) ? AppConstants.colorCritical : AppConstants.colorAttention,
+          subtitle: overdueTank?.tankName ?? 'All up-to-date',
+        );
+
+        if (isMobile) {
+          return Column(
+            children: [
+              totalTile,
+              const SizedBox(height: 10),
+              recentTile,
+              const SizedBox(height: 10),
+              oldestTile,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: totalTile),
+            const SizedBox(width: 14),
+            Expanded(child: recentTile),
+            const SizedBox(width: 14),
+            Expanded(child: oldestTile),
+          ],
+        );
+      },
     );
   }
 
@@ -354,7 +385,8 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: AppConstants.darkCardBackground,
         borderRadius: BorderRadius.circular(16),
@@ -375,12 +407,37 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 4),
-                Text(value, style: TextStyle(color: accentColor, fontSize: 17, fontWeight: FontWeight.bold)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 11), overflow: TextOverflow.ellipsis),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -408,9 +465,12 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row: Tank Badge + Date
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // Header Row: Tank Badge + Date using Wrap so it adapts to small screens
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 10,
+            runSpacing: 6,
             children: [
               // Tank Pill Badge
               MouseRegion(
@@ -448,6 +508,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
 
               // Date Tag
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.event_available_rounded, size: 14, color: Colors.white38),
                   const SizedBox(width: 5),
@@ -470,11 +531,14 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
                 child: Icon(Icons.person_rounded, size: 16, color: Colors.white),
               ),
               const SizedBox(width: 10),
-              Text(
-                item.cleanedBy,
-                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              Expanded(
+                child: Text(
+                  item.cleanedBy,
+                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -507,9 +571,12 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
               children: [
                 const Icon(Icons.cleaning_services_rounded, size: 14, color: AppConstants.accentCyan),
                 const SizedBox(width: 6),
-                Text(
-                  'Method: ${item.cleaningMethod}',
-                  style: const TextStyle(color: AppConstants.accentCyan, fontSize: 12, fontWeight: FontWeight.w600),
+                Flexible(
+                  child: Text(
+                    'Method: ${item.cleaningMethod}',
+                    style: const TextStyle(color: AppConstants.accentCyan, fontSize: 12, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

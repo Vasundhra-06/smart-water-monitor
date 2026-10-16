@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
-import '../../data/models/sensor_reading.dart';
 import '../../core/widgets/app_sidebar.dart';
 
 class LiveDataScreen extends ConsumerWidget {

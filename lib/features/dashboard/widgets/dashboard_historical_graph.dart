@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/services/mock_sensor_service.dart';
 import '../../../core/services/thing_speak_http_service.dart';
 import '../../../data/models/sensor_reading.dart';
 
@@ -347,9 +346,12 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
     final asyncList = (streamList != null && streamList.isNotEmpty)
         ? streamList
         : (readingsAsync.value ?? ThingSpeakHttpService.instance.cachedHistory);
+    // Use strictly real telemetry data - never inject mock historical sine waves
     final rawList = (asyncList.isNotEmpty)
         ? asyncList
-        : MockSensorService.instance.getReadingsForTank(widget.tankId);
+        : (ThingSpeakHttpService.instance.latestCachedReading != null
+            ? [ThingSpeakHttpService.instance.latestCachedReading!]
+            : <SensorReading>[]);
     final readings = _filterReadings(rawList);
 
     double sumScore = 0;
@@ -385,60 +387,67 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
           ),
         ],
       ),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row: Title & Range Selector Buttons
+          // Header Row: Title with Icon
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppConstants.accentCyan.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.show_chart_rounded, color: AppConstants.accentCyan, size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'HISTORICAL WATER QUALITY TREND',
-                    style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppConstants.accentCyan.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.show_chart_rounded, color: AppConstants.accentCyan, size: 18),
               ),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                alignment: WrapAlignment.end,
-                children: [
-                  _buildRangeButton('Today', 'today'),
-                  _buildRangeButton('7 Days', '7d'),
-                  _buildRangeButton('30 Days', '30d'),
-                  _buildCustomButton(),
-                ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'HISTORICAL WATER QUALITY TREND',
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
 
-          const SizedBox(height: 14),
+          // Range Selector Buttons (Horizontal Scroll so they never squish on mobile)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildRangeButton('Today', 'today'),
+                const SizedBox(width: 6),
+                _buildRangeButton('7 Days', '7d'),
+                const SizedBox(width: 6),
+                _buildRangeButton('30 Days', '30d'),
+                const SizedBox(width: 6),
+                _buildCustomButton(),
+              ],
+            ),
+          ),
 
-          // Zone Badges Legend & Scope Indicator (No clutter, neat & clean)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const SizedBox(height: 12),
+
+          // Zone Badges Legend (Wrap to fit nicely on mobile screens)
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 6,
             children: [
-              Row(
-                children: [
-                  _buildZoneDot(const Color(0xFF00E676), 'Safe (70–100)'),
-                  const SizedBox(width: 14),
-                  _buildZoneDot(const Color(0xFFFFB300), 'Warning (40–69)'),
-                  const SizedBox(width: 14),
-                  _buildZoneDot(const Color(0xFFFF3D00), 'Danger (<40)'),
-                ],
-              ),
+              _buildZoneDot(const Color(0xFF00E676), 'Safe (70–100)'),
+              _buildZoneDot(const Color(0xFFFFB300), 'Warning (40–69)'),
+              _buildZoneDot(const Color(0xFFFF3D00), 'Danger (<40)'),
               if (_selectedRange == 'custom' && _customStartDate != null && _customEndDate != null)
                 InkWell(
                   onTap: () => _showCustomDateRangeDialog(context),
@@ -627,19 +636,20 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
 
           // Mini metrics bar below graph
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: AppConstants.darkSurface,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: AppConstants.darkCardBorder),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Wrap(
+              alignment: WrapAlignment.spaceAround,
+              spacing: 14,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _buildSummaryStat('Average Quality', '$avgScore / 100', AppConstants.getScoreColor(avgScore)),
-                Container(width: 1, height: 20, color: AppConstants.darkCardBorder),
                 _buildSummaryStat('Lowest Recorded', '$minScore / 100', AppConstants.getScoreColor(minScore)),
-                Container(width: 1, height: 20, color: AppConstants.darkCardBorder),
                 _buildSummaryStat('Trend Direction', avgScore >= 75 ? 'Optimal Stable' : (avgScore >= 50 ? 'Moderate' : 'Deteriorating'), avgScore >= 75 ? const Color(0xFF00E676) : const Color(0xFFFFB300)),
               ],
             ),

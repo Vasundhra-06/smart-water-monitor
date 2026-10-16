@@ -13,8 +13,8 @@ class RecordCleaningScreen extends ConsumerStatefulWidget {
 }
 
 class _RecordCleaningScreenState extends ConsumerState<RecordCleaningScreen> {
-  final _technicianController = TextEditingController(text: 'Rajesh Kumar (Technician)');
-  final _notesController = TextEditingController(text: 'Scrubbed tank walls, drained sediment, treated with 5ppm chlorine solution.');
+  final _technicianController = TextEditingController();
+  final _notesController = TextEditingController();
   String _method = 'High-pressure Jet Wash & Chlorine Treatment';
 
   void _submit() {
@@ -32,8 +32,8 @@ class _RecordCleaningScreenState extends ConsumerState<RecordCleaningScreen> {
     ref.read(simulationScenarioProvider.notifier).state = SimulationScenario.normal;
     MockSensorService.instance.setScenario(SimulationScenario.normal);
 
-    ref.refresh(cleaningHistoryProvider(tankId));
-    ref.refresh(aiAnalysisProvider(tankId));
+    ref.invalidate(cleaningHistoryProvider(tankId));
+    ref.invalidate(aiAnalysisProvider(tankId));
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Tank cleaning recorded successfully! AI trend baseline reset.')),

@@ -105,10 +105,24 @@ class ThingSpeakHttpService {
         if (feeds.isNotEmpty) {
           final list = feeds
               .map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId))
+              // Only include real sensor deployment readings (entry_id >= 27 from October 13 onwards)
+              .where((r) => r.timestamp.isAfter(DateTime(2026, 10, 1)) && (int.tryParse(r.id) ?? 999) >= 27)
               .toList();
-          _cachedHistory = list;
-          _historyStreamController.add(list);
-          return list;
+
+          // Deduplicate readings with identical entry IDs
+          final deduplicated = <SensorReading>[];
+          final seenIds = <String>{};
+          for (final r in list) {
+            if (seenIds.add(r.id)) {
+              deduplicated.add(r);
+            }
+          }
+
+          if (deduplicated.isNotEmpty) {
+            _cachedHistory = deduplicated;
+            _historyStreamController.add(deduplicated);
+            return deduplicated;
+          }
         }
       }
     } catch (_) {}
@@ -121,10 +135,15 @@ class ThingSpeakHttpService {
         final Map<String, dynamic> jsonBody = json.decode(response.body);
         final List<dynamic> list = jsonBody['data'] ?? [];
         if (list.isNotEmpty) {
-          final listMapped = list.map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId)).toList();
-          _cachedHistory = listMapped;
-          _historyStreamController.add(listMapped);
-          return listMapped;
+          final listMapped = list
+              .map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId))
+              .where((r) => r.timestamp.isAfter(DateTime(2026, 10, 1)) && (int.tryParse(r.id) ?? 999) >= 27)
+              .toList();
+          if (listMapped.isNotEmpty) {
+            _cachedHistory = listMapped;
+            _historyStreamController.add(listMapped);
+            return listMapped;
+          }
         }
       }
     } catch (_) {}

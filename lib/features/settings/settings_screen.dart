@@ -39,13 +39,7 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
             onTap: () => context.push('/profile'),
           ),
-          ListTile(
-            leading: const Icon(Icons.picture_as_pdf_outlined, color: AppConstants.accentCyan),
-            title: const Text('Generate Water Audit PDF Reports', style: TextStyle(color: Colors.white)),
-            subtitle: const Text('Export daily, weekly, and monthly reports', style: TextStyle(color: Colors.white60, fontSize: 12)),
-            trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
-            onTap: () => context.push('/reports'),
-          ),
+
           const Divider(color: Colors.white24, height: 32),
           ListTile(
             leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),

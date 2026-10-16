@@ -20,7 +20,6 @@ import '../../features/device/device_details_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/profile/profile_screen.dart';
-import '../../features/reports/reports_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/splash',
@@ -74,6 +73,6 @@ final appRouter = GoRouter(
     GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
     GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
     GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
-    GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+    GoRoute(path: '/reports', redirect: (context, state) => '/dashboard'),
   ],
 );

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,7 +20,6 @@ class AIAnalysisScreen extends ConsumerWidget {
     final ai = aiAsync.value ?? MockSensorService.instance.getAIAnalysis(tankId);
 
     final scoreColor = AppConstants.getScoreColor(ai.waterQualityScore);
-    final isDesktop = kIsWeb || MediaQuery.of(context).size.width > 500;
 
     Widget mainScreen = Scaffold(
       backgroundColor: AppConstants.darkBackground,

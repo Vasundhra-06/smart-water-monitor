@@ -143,137 +143,14 @@ class MockSensorService {
       ),
     };
 
-    // Generate 30 days of realistic history
+    // Initialize empty collections so only real user and telemetry data exist
     _historyMap = {};
     for (var tank in _tanks) {
-      _historyMap[tank.id] = _generateHistoryForTank(tank.id, tank.deviceId ?? 'TANK_001');
+      _historyMap[tank.id] = [];
     }
 
-    _alerts = [
-      AlertItem(
-        id: 'alert-1',
-        tankId: 'tank-canteen',
-        deviceId: 'TANK_003',
-        alertType: 'cleaning',
-        severity: 'CRITICAL',
-        title: '🔴 CRITICAL CLEANING REQUIRED: Abnormal Turbidity & Score Drop',
-        message: 'High-severity emergency alert: Water Quality Score dropped into Danger Zone (<40/100) due to severe Turbidity peak (4.62 NTU) and floor sediment accumulation in Central Canteen Tank. Immediate tank scrubbing & inspection required.',
-        parameter: 'turbidity',
-        value: 4.62,
-        threshold: 2.5,
-        detectedAt: now.subtract(const Duration(hours: 2)),
-        isRead: false,
-        isResolved: false,
-      ),
-      AlertItem(
-        id: 'alert-2',
-        tankId: 'tank-canteen',
-        deviceId: 'TANK_003',
-        alertType: 'power',
-        severity: 'WARNING',
-        title: 'Battery Backup Mode Active',
-        message: 'Central Canteen Tank device operating on battery backup (Battery: 74%). Mains power supply disconnected.',
-        parameter: 'power_source',
-        value: 0,
-        threshold: 0,
-        detectedAt: now.subtract(const Duration(hours: 4)),
-        isRead: true,
-        isResolved: false,
-      ),
-    ];
-
-    _cleaningHistory = [
-      CleaningRecord(
-        id: 'clean-canteen-new',
-        tankId: 'tank-canteen',
-        cleanedAt: now.subtract(const Duration(days: 2)),
-        cleanedBy: 'Vikram Singh (Senior Technician)',
-        notes: 'Emergency deep cleaning following abnormal turbidity peak: Tank completely drained, sediment vacuumed, chemical sanitization applied, and inlet filters renewed.',
-        cleaningMethod: 'Emergency Biofilm Scrubbing & Chemical Sanitization',
-        createdAt: now.subtract(const Duration(days: 2)),
-      ),
-      CleaningRecord(
-        id: 'clean-1',
-        tankId: 'tank-main',
-        cleanedAt: now.subtract(const Duration(days: 6)),
-        cleanedBy: 'Rajesh Kumar (Technician)',
-        notes: 'Routine quarterly tank cleaning and UV bulb replacement.',
-        cleaningMethod: 'High-pressure Jet Wash & Chlorine Sanitization',
-        createdAt: now.subtract(const Duration(days: 6)),
-      ),
-      CleaningRecord(
-        id: 'clean-ro-1',
-        tankId: 'tank-ro',
-        cleanedAt: now.subtract(const Duration(days: 9)),
-        cleanedBy: 'Rajesh Kumar (Technician)',
-        notes: 'RO membrane flush, carbon filter renewal, and UV chamber sterilizing.',
-        cleaningMethod: 'RO Membrane Clean & UV Sterilization',
-        createdAt: now.subtract(const Duration(days: 9)),
-      ),
-      CleaningRecord(
-        id: 'clean-hostel-1',
-        tankId: 'tank-hostel',
-        cleanedAt: now.subtract(const Duration(days: 14)),
-        cleanedBy: 'Amit Patel (Technician)',
-        notes: 'Filter backwash and wall descaling for student residential domestic supply.',
-        cleaningMethod: 'Pressure Wash & Descaling',
-        createdAt: now.subtract(const Duration(days: 14)),
-      ),
-      CleaningRecord(
-        id: 'clean-4',
-        tankId: 'tank-canteen',
-        cleanedAt: now.subtract(const Duration(days: 22)),
-        cleanedBy: 'Vikram Singh (Technician)',
-        notes: 'Food-grade chemical sanitization, sediment vacuuming, and inflow filter replacement.',
-        cleaningMethod: 'Chemical Sanitization & Deep Scrubbing',
-        createdAt: now.subtract(const Duration(days: 22)),
-      ),
-      CleaningRecord(
-        id: 'clean-2',
-        tankId: 'tank-main',
-        cleanedAt: now.subtract(const Duration(days: 32)),
-        cleanedBy: 'Suresh Sharma (Technician)',
-        notes: 'Sediment removal and tank walls scrubbing with bactericidal wash.',
-        cleaningMethod: 'Scrubbing & Flushing',
-        createdAt: now.subtract(const Duration(days: 32)),
-      ),
-      CleaningRecord(
-        id: 'clean-ro-2',
-        tankId: 'tank-ro',
-        cleanedAt: now.subtract(const Duration(days: 40)),
-        cleanedBy: 'Rajesh Kumar (Technician)',
-        notes: 'Full filtration pack change, reverse osmosis pre-filter maintenance.',
-        cleaningMethod: 'Cartridge Replacement & Flushing',
-        createdAt: now.subtract(const Duration(days: 40)),
-      ),
-      CleaningRecord(
-        id: 'clean-hostel-2',
-        tankId: 'tank-hostel',
-        cleanedAt: now.subtract(const Duration(days: 45)),
-        cleanedBy: 'Amit Patel (Technician)',
-        notes: 'Sludge drainage, high-pressure jet wash, and safety chlorine dosing.',
-        cleaningMethod: 'High-pressure Jet Wash',
-        createdAt: now.subtract(const Duration(days: 45)),
-      ),
-      CleaningRecord(
-        id: 'clean-canteen-old',
-        tankId: 'tank-canteen',
-        cleanedAt: now.subtract(const Duration(days: 52)),
-        cleanedBy: 'Suresh Sharma (Technician)',
-        notes: 'Routine dining hall water safety inspection and sediment evacuation.',
-        cleaningMethod: 'Manual Scrubbing & Chlorination',
-        createdAt: now.subtract(const Duration(days: 52)),
-      ),
-      CleaningRecord(
-        id: 'clean-main-old',
-        tankId: 'tank-main',
-        cleanedAt: now.subtract(const Duration(days: 65)),
-        cleanedBy: 'Rajesh Kumar (Technician)',
-        notes: 'Complete tank overhaul and baseline recalibration.',
-        cleaningMethod: 'Full Tank Overhaul & UV Sterilization',
-        createdAt: now.subtract(const Duration(days: 65)),
-      ),
-    ];
+    _alerts = [];
+    _cleaningHistory = [];
 
     _aiResults = {
       'tank-main': AIAnalysisResult(
@@ -400,38 +277,7 @@ class MockSensorService {
   }
 
   void _startLiveTicker() {
-    Timer.periodic(const Duration(seconds: 5), (timer) {
-      for (var tank in _tanks) {
-        double ph = 7.15 + (_random.nextDouble() * 0.2 - 0.1);
-        double tds = 230.0 + (_random.nextDouble() * 8 - 4);
-        double turb = 1.1 + (_random.nextDouble() * 0.2 - 0.1);
-        double temp = 26.5 + (_random.nextDouble() * 1.0 - 0.5);
-        double level = 78.0 + (_random.nextDouble() * 2.0 - 1.0);
-
-        if (_currentScenario == SimulationScenario.deteriorating && tank.id == 'tank-main') {
-          turb = 4.62;
-          tds = 485.0;
-        }
-
-        final reading = SensorReading(
-          id: 'tick-${tank.id}-${DateTime.now().millisecondsSinceEpoch}',
-          deviceId: tank.deviceId ?? 'TANK_001',
-          tankId: tank.id,
-          timestamp: DateTime.now(),
-          ph: double.parse(ph.toStringAsFixed(2)),
-          tds: double.parse(tds.toStringAsFixed(1)),
-          turbidity: double.parse(turb.toStringAsFixed(2)),
-          temperature: double.parse(temp.toStringAsFixed(1)),
-          waterLevel: double.parse(level.toStringAsFixed(1)),
-        );
-
-        _historyMap[tank.id]?.add(reading);
-        if (_historyMap[tank.id]!.length > 100) {
-          _historyMap[tank.id]!.removeAt(0);
-        }
-        _streamController.add(reading);
-      }
-    });
+    // Disabled: Telemetry data streams strictly from real ESP32 sensors via ThingSpeak
   }
 
   // API Methods
