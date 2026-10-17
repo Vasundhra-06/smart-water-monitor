@@ -22,7 +22,7 @@ class TanksScreen extends ConsumerWidget {
     Widget mainScreen = Scaffold(
       backgroundColor: AppConstants.darkBackground,
       appBar: AppBar(
-        title: const Text('Institutional Water Storage Tanks'),
+        title: const Text('Storage Tanks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         actions: [
           const NotificationBellButton(),
           if (role == UserRole.admin)
@@ -77,119 +77,182 @@ class TanksScreen extends ConsumerWidget {
     final scoreColor = AppConstants.getScoreColor(aiData.waterQualityScore);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      color: AppConstants.darkCardBackground,
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: const BorderSide(color: AppConstants.darkCardBorder),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () {
-                      ref.read(selectedTankProvider.notifier).state = tank;
-                      context.push('/tank-details', extra: tank.id);
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.water_rounded, color: AppConstants.accentCyan),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            tank.tankName,
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
+      child: InkWell(
+        onTap: () {
+          ref.read(selectedTankProvider.notifier).state = tank;
+          context.push('/tank-details', extra: tank.id);
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(14.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Row: Water Icon + Tank Name + Delete Button
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppConstants.accentCyan.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.water_rounded, color: AppConstants.accentCyan, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      tank.tankName,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  InkWell(
+                    onTap: () => _confirmDeleteTank(context, ref, tank),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.4)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 14),
+                          SizedBox(width: 3),
+                          Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: Color(0xFFEF4444),
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 11,
                             ),
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Location Row
+              Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 13, color: Colors.white38),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      tank.location,
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Divider
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              const SizedBox(height: 10),
+
+              // Bottom Stats Wrap (Never overflows on mobile)
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  // Score Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: scoreColor.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: scoreColor.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.verified_rounded, size: 12, color: scoreColor),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${aiData.waterQualityScore}/100 (${aiData.status})',
+                          style: TextStyle(
+                            color: scoreColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: scoreColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${aiData.waterQualityScore}/100 (${aiData.status})',
-                        style: TextStyle(
-                          color: scoreColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    InkWell(
-                      onTap: () => _confirmDeleteTank(context, ref, tank),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: const Color(0x33EF4444),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.delete_forever_rounded, color: Color(0xFFEF4444), size: 18),
-                            SizedBox(width: 4),
-                            Text(
-                              'Delete',
-                              style: TextStyle(
-                                color: Color(0xFFEF4444),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: () {
-                ref.read(selectedTankProvider.notifier).state = tank;
-                context.push('/tank-details', extra: tank.id);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(tank.location, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                  const SizedBox(height: 12),
+
+                  // Capacity
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Capacity: ${tank.capacity.toStringAsFixed(0)} L', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                      Text('Cleaned: ${tank.daysSinceCleaning}d ago', style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                      Text('Status: ${tank.status.name.toUpperCase()}', style: const TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.w600)),
+                      const Icon(Icons.storage_rounded, size: 12, color: Colors.white38),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${tank.capacity.toStringAsFixed(0)} L',
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
                     ],
+                  ),
+
+                  // Cleaned
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cleaning_services_rounded, size: 12, color: Colors.white38),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${tank.daysSinceCleaning}d ago',
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+
+                  // Status
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircleAvatar(radius: 2.5, backgroundColor: Colors.greenAccent),
+                        const SizedBox(width: 4),
+                        Text(
+                          tank.status.name.toUpperCase(),
+                          style: const TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

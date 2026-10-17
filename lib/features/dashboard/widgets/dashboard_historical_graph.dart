@@ -410,7 +410,7 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'HISTORICAL WATER QUALITY TREND',
+                  'WATER QUALITY TREND',
                   style: GoogleFonts.inter(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

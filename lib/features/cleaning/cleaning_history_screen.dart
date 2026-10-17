@@ -39,39 +39,19 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
     return Scaffold(
       backgroundColor: AppConstants.darkBackground,
       appBar: AppBar(
-        title: Builder(
-          builder: (context) {
-            final isNarrow = MediaQuery.of(context).size.width < 500;
-            return Text(
-              isNarrow ? 'Cleaning Logs' : 'Tank Cleaning History & Logs',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            );
-          },
+        titleSpacing: 0,
+        title: const Text(
+          'Cleaning Logs',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         actions: [
-          const NotificationBellButton(),
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: Builder(
-              builder: (context) {
-                final isNarrow = MediaQuery.of(context).size.width < 450;
-                return ElevatedButton.icon(
-                  onPressed: () => context.push('/record-cleaning'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConstants.accentCyan,
-                    foregroundColor: Colors.black87,
-                    padding: EdgeInsets.symmetric(horizontal: isNarrow ? 10 : 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  icon: const Icon(Icons.add_task_rounded, size: 16),
-                  label: Text(
-                    isNarrow ? 'Record' : 'Record Cleaning',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                );
-              },
-            ),
+          IconButton(
+            tooltip: 'Record Cleaning',
+            icon: const Icon(Icons.add_task_rounded, color: AppConstants.accentCyan),
+            onPressed: () => context.push('/record-cleaning'),
           ),
+          const NotificationBellButton(),
+          const SizedBox(width: 8),
         ],
       ),
       body: Row(
@@ -80,7 +60,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
           const VerticalDivider(color: AppConstants.darkCardBorder, width: 1),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.all(14.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -465,56 +445,56 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row: Tank Badge + Date using Wrap so it adapts to small screens
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 10,
-            runSpacing: 6,
+          // Header Row: Tank Badge + Date
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Tank Pill Badge
-              MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () {
-                    // Clicking tank badge filters by this tank!
-                    setState(() => _selectedFilterTankId = item.tankId);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: tankColor.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: tankColor.withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(tankIcon, size: 14, color: tankColor),
-                        const SizedBox(width: 6),
-                        Text(
-                          tankName,
-                          style: TextStyle(
-                            color: tankColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+              Flexible(
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedFilterTankId = item.tankId);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: tankColor.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: tankColor.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(tankIcon, size: 12, color: tankColor),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              tankName,
+                              style: TextStyle(
+                                color: tankColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-
-              // Date Tag
+              const SizedBox(width: 8),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.event_available_rounded, size: 14, color: Colors.white38),
-                  const SizedBox(width: 5),
+                  const Icon(Icons.event_available_rounded, size: 13, color: Colors.white38),
+                  const SizedBox(width: 4),
                   Text(
-                    '${item.cleanedAt.day.toString().padLeft(2, '0')}/${item.cleanedAt.month.toString().padLeft(2, '0')}/${item.cleanedAt.year} ($daysAgo days ago)',
-                    style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500),
+                    '${item.cleanedAt.day.toString().padLeft(2, '0')}/${item.cleanedAt.month.toString().padLeft(2, '0')}/${item.cleanedAt.year} • ${daysAgo}d ago',
+                    style: const TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -526,31 +506,32 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
           Row(
             children: [
               const CircleAvatar(
-                radius: 13,
+                radius: 12,
                 backgroundColor: AppConstants.primaryBlue,
-                child: Icon(Icons.person_rounded, size: 16, color: Colors.white),
+                child: Icon(Icons.person_rounded, size: 14, color: Colors.white),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   item.cleanedBy,
                   style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppConstants.colorGood.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_rounded, size: 12, color: AppConstants.colorGood),
-                    SizedBox(width: 4),
-                    Text('Verified', style: TextStyle(color: AppConstants.colorGood, fontSize: 11, fontWeight: FontWeight.bold)),
+                    Icon(Icons.check_circle_rounded, size: 11, color: AppConstants.colorGood),
+                    SizedBox(width: 3),
+                    Text('Verified', style: TextStyle(color: AppConstants.colorGood, fontSize: 10, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -560,22 +541,22 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
 
           // Method Tag
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cleaning_services_rounded, size: 14, color: AppConstants.accentCyan),
+                const Icon(Icons.cleaning_services_rounded, size: 13, color: AppConstants.accentCyan),
                 const SizedBox(width: 6),
-                Flexible(
+                Expanded(
                   child: Text(
                     'Method: ${item.cleaningMethod}',
-                    style: const TextStyle(color: AppConstants.accentCyan, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: AppConstants.accentCyan, fontSize: 11, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],

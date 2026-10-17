@@ -131,6 +131,54 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (aiData.cleaningRecommendation || scenario == SimulationScenario.deteriorating)
             _buildCleaningAlertBanner(context, activeTank, aiData),
 
+          // Active Tank Selector Bar (Full width, mobile friendly, no overlap)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppConstants.darkCardBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppConstants.darkCardBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.water_rounded, color: AppConstants.accentCyan, size: 16),
+                const SizedBox(width: 8),
+                const Text(
+                  'Tank:',
+                  style: TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: activeTank.id,
+                      dropdownColor: AppConstants.darkSurface,
+                      isDense: true,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppConstants.accentCyan, size: 20),
+                      items: (tanksAsync.value ?? [activeTank]).map((tank) {
+                        return DropdownMenuItem<String>(
+                          value: tank.id,
+                          child: Text(
+                            tank.tankName,
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (id) {
+                        if (id != null) {
+                          final chosen = (tanksAsync.value ?? []).firstWhere((t) => t.id == id, orElse: () => activeTank);
+                          ref.read(selectedTankProvider.notifier).state = chosen;
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Interactive Historical Trend Graph Section (Replaces Overall Score)
           DashboardHistoricalGraph(tankId: activeTank.id),
           const SizedBox(height: 24),
@@ -168,58 +216,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     PreferredSizeWidget appBar = AppBar(
       backgroundColor: AppConstants.darkCardBackground,
       elevation: 0,
+      titleSpacing: 12,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(7),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: AppConstants.accentCyan.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.4)),
             ),
-            child: const Icon(Icons.water_drop_rounded, color: AppConstants.accentCyan, size: 20),
+            child: const Icon(Icons.water_drop_rounded, color: AppConstants.accentCyan, size: 18),
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          const SizedBox(width: 10),
+          Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  AppConstants.appName,
-                  style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold),
+                const Text(
+                  'Smart Water Monitor',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(
-                      child: DropdownButton<String>(
-                        value: activeTank.id,
-                        dropdownColor: AppConstants.darkSurface,
-                        underline: const SizedBox(),
-                        isDense: true,
-                        icon: const Icon(Icons.arrow_drop_down, color: AppConstants.accentCyan),
-                        items: (tanksAsync.value ?? [activeTank]).map((tank) {
-                          return DropdownMenuItem<String>(
-                            value: tank.id,
-                            child: Text(
-                              tank.tankName,
-                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (id) {
-                          if (id != null) {
-                            final chosen = (tanksAsync.value ?? []).firstWhere((t) => t.id == id, orElse: () => activeTank);
-                            ref.read(selectedTankProvider.notifier).state = chosen;
-                          }
-                        },
+                      child: Text(
+                        activeTank.tankName,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
                         color: Colors.green.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
@@ -227,9 +262,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircleAvatar(radius: 3, backgroundColor: Colors.greenAccent),
-                          SizedBox(width: 4),
-                          Text('Live', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                          CircleAvatar(radius: 2.5, backgroundColor: Colors.greenAccent),
+                          SizedBox(width: 3),
+                          Text('Live', style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -242,27 +277,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       actions: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: ElevatedButton.icon(
-            onPressed: () => _confirmResetDialog(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.18),
-              foregroundColor: const Color(0xFFEF4444),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-              side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFFEF4444)),
-            label: const Text(
-              'Reset',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: InkWell(
+            onTap: () => _confirmResetDialog(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.refresh_rounded, size: 14, color: Color(0xFFEF4444)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Reset',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         const NotificationBellButton(),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
       ],
     );
 
@@ -430,18 +472,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.psychology_rounded, color: AppConstants.accentCyan),
-                  const SizedBox(width: 8),
-                  Text('AI Water Quality Trend Engine', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                ],
+              const Icon(Icons.psychology_rounded, color: AppConstants.accentCyan, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'AI Trend Engine',
+                  style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              TextButton(
-                onPressed: () => context.push('/graphs'),
-                child: const Text('View Graphs', style: TextStyle(color: AppConstants.accentCyan, fontSize: 12)),
+              InkWell(
+                onTap: () => context.push('/graphs'),
+                borderRadius: BorderRadius.circular(6),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('View', style: TextStyle(color: AppConstants.accentCyan, fontSize: 12, fontWeight: FontWeight.bold)),
+                      SizedBox(width: 2),
+                      Icon(Icons.arrow_forward_ios_rounded, color: AppConstants.accentCyan, size: 10),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
