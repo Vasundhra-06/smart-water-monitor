@@ -108,9 +108,12 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
     final tanksAsync = ref.watch(tanksProvider);
     final activeTank = selectedTank ?? MockSensorService.instance.getTanks().first;
 
-    final latestReading = ref.watch(liveSensorStreamProvider).value ??
-        (ThingSpeakHttpService.instance.latestCachedReading ??
-            SensorReading.zero(tankId: activeTank.id));
+    final isReset = ThingSpeakHttpService.instance.isResetMode;
+    final latestReading = isReset
+        ? SensorReading.zero(tankId: activeTank.id)
+        : (ref.watch(liveSensorStreamProvider).value ??
+            (ThingSpeakHttpService.instance.latestCachedReading ??
+                SensorReading.zero(tankId: activeTank.id)));
 
     PreferredSizeWidget appBar = AppBar(
       backgroundColor: AppConstants.darkCardBackground,

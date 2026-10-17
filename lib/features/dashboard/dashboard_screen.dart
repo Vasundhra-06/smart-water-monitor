@@ -110,9 +110,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final tanksAsync = ref.watch(tanksProvider);
     final activeTank = selectedTank ?? MockSensorService.instance.getTanks().first;
 
-    final latestReading = ref.watch(liveSensorStreamProvider).value ??
-        (ThingSpeakHttpService.instance.latestCachedReading ??
-            SensorReading.zero(tankId: activeTank.id));
+    final isReset = ThingSpeakHttpService.instance.isResetMode;
+    final latestReading = isReset
+        ? SensorReading.zero(tankId: activeTank.id)
+        : (ref.watch(liveSensorStreamProvider).value ??
+            (ThingSpeakHttpService.instance.latestCachedReading ??
+                SensorReading.zero(tankId: activeTank.id)));
     final aiAsync = ref.watch(aiAnalysisProvider(activeTank.id));
     final aiData = aiAsync.value ?? MockSensorService.instance.getAIAnalysis(activeTank.id);
 

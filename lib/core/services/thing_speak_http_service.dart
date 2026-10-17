@@ -54,6 +54,19 @@ class ThingSpeakHttpService {
       final idNum = int.tryParse(r.id) ?? 0;
       if (idNum > maxEntry) maxEntry = idNum;
     }
+
+    try {
+      final thingSpeakUrl = Uri.parse(
+        'https://api.thingspeak.com/channels/${AppConstants.thingSpeakChannelId}/feeds/last.json',
+      );
+      final response = await http.get(thingSpeakUrl).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        final int entryId = int.tryParse(data['entry_id']?.toString() ?? '0') ?? 0;
+        if (entryId > maxEntry) maxEntry = entryId;
+      }
+    } catch (_) {}
+
     _resetMinEntryId = maxEntry;
     _resetTimestamp = DateTime.now();
     _isResetMode = true;
@@ -188,12 +201,6 @@ class ThingSpeakHttpService {
   }
 
   Future<List<SensorReading>> fetchHistoricalReadings(String tankId, {int results = 50}) async {
-    if (_isResetMode) {
-      _cachedHistory = [];
-      _historyStreamController.add([]);
-      return [];
-    }
-
     // 1. Direct ThingSpeak Cloud API (Real-time history)
     try {
       final thingSpeakUrl = Uri.parse(
