@@ -10,6 +10,7 @@ class SensorReading {
   final double turbidity;
   final double temperature;
   final double waterLevel;
+  final double? directQualityScore;
 
   SensorReading({
     required this.id,
@@ -21,6 +22,7 @@ class SensorReading {
     required this.turbidity,
     required this.temperature,
     required this.waterLevel,
+    this.directQualityScore,
   });
 
   factory SensorReading.fromJson(Map<String, dynamic> json) {
@@ -36,6 +38,7 @@ class SensorReading {
       turbidity: (json['turbidity'] != null ? (json['turbidity'] as num).toDouble() : 1.2),
       temperature: (json['temperature'] as num).toDouble(),
       waterLevel: (json['water_level'] != null ? (json['water_level'] as num).toDouble() : 78.0),
+      directQualityScore: json['quality'] != null ? (json['quality'] as num).toDouble() : null,
     );
   }
 
@@ -52,6 +55,9 @@ class SensorReading {
     // DS18B20 digital temperature sensors return -127.0 when wire is disconnected or floating
     final temperature = (rawTemp < 0 || rawTemp > 65) ? 27.5 : rawTemp;
     final turbidity = parseVal(json['turbidity'], 1.2);
+    final rawQuality = json.containsKey('field4') && json['field4'] != null
+        ? parseVal(json['field4'], -1.0)
+        : (json.containsKey('quality') ? parseVal(json['quality'], -1.0) : -1.0);
 
     DateTime ts;
     if (json['created_at'] != null) {
@@ -72,6 +78,7 @@ class SensorReading {
       turbidity: turbidity,
       temperature: temperature,
       waterLevel: parseVal(json['water_level'], 78.0),
+      directQualityScore: rawQuality >= 0 ? rawQuality : null,
     );
   }
 
@@ -86,6 +93,7 @@ class SensorReading {
       turbidity: 0.0,
       temperature: 0.0,
       waterLevel: 0.0,
+      directQualityScore: 0.0,
     );
   }
 
@@ -102,6 +110,7 @@ class SensorReading {
       'turbidity': turbidity,
       'temperature': temperature,
       'water_level': waterLevel,
+      'quality': directQualityScore,
     };
   }
 
@@ -122,11 +131,20 @@ class SensorReading {
 
   int get waterQualityScore {
     if (isZero) return 0;
+    if (directQualityScore != null && directQualityScore! >= 0) {
+      return directQualityScore!.round().clamp(0, 100);
+    }
     return scoreAnalysis.score;
   }
 
   String get qualityZone {
     if (isZero) return 'Standby';
+    if (directQualityScore != null && directQualityScore! >= 0) {
+      final q = directQualityScore!;
+      if (q >= 80) return 'Safe to Drink';
+      if (q >= 50) return 'Moderate / Boil';
+      return 'Unsafe / Treat';
+    }
     return scoreAnalysis.status;
   }
 }
