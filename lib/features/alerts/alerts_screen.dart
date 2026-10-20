@@ -22,10 +22,10 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   final Map<String, String> _categoryExplanations = {
     'All': 'Showing all system notifications and active telemetry alerts.',
     'Unread': 'Showing unacknowledged alerts requiring technician or operator attention.',
-    'Critical': '🔴 Critical Alerts: Severe water safety failures (<50% index) or extreme chemical contamination risks.',
-    'Cleaning': '🧹 Cleaning Alerts: Overdue tank sanitization intervals (e.g. Canteen Tank) and sediment buildup notices.',
-    'Device': '📟 Device Alerts: Hardware diagnostic messages regarding sensor calibration, telemetry probe connectivity, or hardware errors.',
-    'Power': '⚡ Power Alerts: 5V power delivery rail status, mains connection, and auxiliary battery backup telemetry.',
+    'Critical': 'Critical Alerts: Severe water safety failures (<50% index) or extreme chemical contamination risks.',
+    'Cleaning': 'Cleaning Alerts: Overdue tank sanitization intervals (e.g. Canteen Tank) and sediment buildup notices.',
+    'Device': 'Device Alerts: Hardware diagnostic messages regarding sensor calibration, telemetry probe connectivity, or hardware errors.',
+    'Power': 'Power Alerts: 5V power delivery rail status, mains connection, and auxiliary battery backup telemetry.',
   };
 
   int _getCategoryCount(List<AlertItem> list, String cat) {
@@ -47,18 +47,19 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   }
 
   IconData _getCategoryIcon(String type, String severity) {
-    switch (type) {
-      case 'cleaning':
-        return Icons.cleaning_services_rounded;
-      case 'device':
-        return Icons.sensors_rounded;
-      case 'power':
-        return Icons.bolt_rounded;
-      case 'critical':
-        return Icons.error_outline_rounded;
-      default:
-        return severity == 'CRITICAL' ? Icons.error_outline_rounded : Icons.warning_amber_rounded;
+    if (type == 'cleaning') {
+      return Icons.cleaning_services;
     }
+    if (type == 'device') {
+      return Icons.sensors;
+    }
+    if (type == 'power') {
+      return Icons.bolt;
+    }
+    if (severity == 'CRITICAL' || type == 'critical') {
+      return Icons.error_outline;
+    }
+    return Icons.warning_amber_rounded;
   }
 
   @override
@@ -303,15 +304,18 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
-                      color: severityColor.withValues(alpha: 0.15),
+                      color: severityColor.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
+                      border: Border.all(color: severityColor.withValues(alpha: 0.4), width: 1.5),
                     ),
+                    alignment: Alignment.center,
                     child: Icon(
                       _getCategoryIcon(alert.alertType, alert.severity),
                       color: severityColor,
-                      size: 24,
+                      size: 22,
                     ),
                   ),
                   const SizedBox(width: 12),
