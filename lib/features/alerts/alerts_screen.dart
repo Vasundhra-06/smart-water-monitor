@@ -20,12 +20,12 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   String _selectedCategory = 'All';
 
   final Map<String, String> _categoryExplanations = {
-    'All': 'Showing all system notifications and telemetry alerts.',
-    'Unread': 'Showing unacknowledged alerts that require technical attention.',
-    'Critical': '🔴 Critical Alerts: High-severity conditions where Water Quality Index dropped into Danger (<40) or severe physical parameter breakdown occurred.',
-    'Cleaning': '🧹 Cleaning Alerts: Maintenance notifications indicating turbidity spikes (>1.5 NTU), sediment buildup, or mandatory tank scrubbing intervals.',
+    'All': 'Showing all system notifications and active telemetry alerts.',
+    'Unread': 'Showing unacknowledged alerts requiring technician or operator attention.',
+    'Critical': '🔴 Critical Alerts: Severe water safety failures (<50% index) or extreme chemical contamination risks.',
+    'Cleaning': '🧹 Cleaning Alerts: Overdue tank sanitization intervals (e.g. Canteen Tank) and sediment buildup notices.',
     'Device': '📟 Device Alerts: Hardware diagnostic messages regarding sensor calibration, telemetry probe connectivity, or hardware errors.',
-    'Power': '⚡ Power Alerts: Power supply notifications when mains electricity is disconnected and the monitoring station operates on Battery Backup mode.',
+    'Power': '⚡ Power Alerts: 5V power delivery rail status, mains connection, and auxiliary battery backup telemetry.',
   };
 
   int _getCategoryCount(List<AlertItem> list, String cat) {
@@ -44,6 +44,21 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       return list.where((a) => a.alertType == 'power' || a.title.toLowerCase().contains('battery') || a.title.toLowerCase().contains('power')).length;
     }
     return 0;
+  }
+
+  IconData _getCategoryIcon(String type, String severity) {
+    switch (type) {
+      case 'cleaning':
+        return Icons.cleaning_services_rounded;
+      case 'device':
+        return Icons.sensors_rounded;
+      case 'power':
+        return Icons.bolt_rounded;
+      case 'critical':
+        return Icons.error_outline_rounded;
+      default:
+        return severity == 'CRITICAL' ? Icons.error_outline_rounded : Icons.warning_amber_rounded;
+    }
   }
 
   @override
@@ -74,6 +89,26 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       appBar: AppBar(
         backgroundColor: AppConstants.darkBackground,
         title: const Text('Water Monitor Alert Center'),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.done_all_rounded, color: AppConstants.accentCyan, size: 18),
+            label: const Text(
+              'Mark All Read',
+              style: TextStyle(color: AppConstants.accentCyan, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              ref.read(alertRepositoryProvider).markAllAsRead();
+              ref.invalidate(alertsProvider);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('All alerts marked as read.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -187,7 +222,19 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
           // Alerts List (Clickable Alert Cards)
           Expanded(
             child: filtered.isEmpty
-                ? const Center(child: Text('No alerts found for this category.', style: TextStyle(color: Colors.white54)))
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_outline_rounded, color: AppConstants.accentCyan, size: 48),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No alerts found in $_selectedCategory category.',
+                          style: const TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     itemCount: filtered.length,
@@ -217,6 +264,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     Color severityColor = AppConstants.colorInfo;
     if (alert.severity == 'WARNING') severityColor = AppConstants.colorAttention;
     if (alert.severity == 'CRITICAL') severityColor = AppConstants.colorCritical;
+    if (alert.alertType == 'power') severityColor = const Color(0xFFFFD600);
 
     final isCombinedCriticalCleaning = alert.severity == 'CRITICAL' && (alert.alertType == 'cleaning' || alert.title.toLowerCase().contains('clean'));
 
@@ -225,11 +273,18 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: severityColor.withValues(alpha: 0.5), width: alert.severity == 'CRITICAL' ? 1.5 : 1.0),
+        side: BorderSide(
+          color: alert.isRead ? severityColor.withValues(alpha: 0.3) : severityColor,
+          width: alert.isRead ? 1.0 : 1.6,
+        ),
       ),
-      color: AppConstants.darkCardBackground,
+      color: alert.isRead ? AppConstants.darkCardBackground.withValues(alpha: 0.8) : AppConstants.darkCardBackground,
       child: InkWell(
         onTap: () {
+          // Mark this individual alert as read
+          ref.read(alertRepositoryProvider).markAsRead(alert.id);
+          ref.invalidate(alertsProvider);
+
           // Open detail screen with root cause analysis & action buttons
           context.push('/alert-details', extra: {
             'title': alert.title,
@@ -254,7 +309,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      alert.alertType == 'cleaning' ? Icons.cleaning_services_rounded : Icons.warning_amber_rounded,
+                      _getCategoryIcon(alert.alertType, alert.severity),
                       color: severityColor,
                       size: 24,
                     ),
@@ -270,14 +325,39 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                             Expanded(
                               child: Text(
                                 alert.title,
-                                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
+                            if (!alert.isRead) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF3D00).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: const Color(0xFFFF3D00), width: 0.8),
+                                ),
+                                child: const Text(
+                                  'NEW',
+                                  style: TextStyle(color: Color(0xFFFF3D00), fontSize: 9, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(color: severityColor.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(6)),
-                              child: Text(alert.severity, style: TextStyle(color: severityColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                              decoration: BoxDecoration(
+                                color: severityColor.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                alert.severity,
+                                style: TextStyle(color: severityColor, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ],
                         ),
@@ -292,7 +372,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Detected: ${alert.detectedAt.hour}:${alert.detectedAt.minute.toString().padLeft(2, '0')}',
+                              'Detected: ${alert.detectedAt.hour.toString().padLeft(2, '0')}:${alert.detectedAt.minute.toString().padLeft(2, '0')}',
                               style: const TextStyle(color: Colors.white38, fontSize: 11),
                             ),
                             const Row(

@@ -44,17 +44,25 @@ class AlertDetailScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            alertType == 'cleaning' ? Icons.cleaning_services_rounded : Icons.warning_amber_rounded,
-                            color: severityColor,
-                            size: 26,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(title, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                        ],
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(
+                              alertType == 'cleaning' ? Icons.cleaning_services_rounded : Icons.warning_amber_rounded,
+                              color: severityColor,
+                              size: 26,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(color: severityColor, borderRadius: BorderRadius.circular(12)),

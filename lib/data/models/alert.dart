@@ -53,4 +53,38 @@ class AlertItem {
           : null,
     );
   }
+
+  AlertItem copyWith({
+    String? id,
+    String? tankId,
+    String? deviceId,
+    String? alertType,
+    String? severity,
+    String? title,
+    String? message,
+    String? parameter,
+    double? value,
+    double? threshold,
+    DateTime? detectedAt,
+    bool? isRead,
+    bool? isResolved,
+    DateTime? resolvedAt,
+  }) {
+    return AlertItem(
+      id: id ?? this.id,
+      tankId: tankId ?? this.tankId,
+      deviceId: deviceId ?? this.deviceId,
+      alertType: alertType ?? this.alertType,
+      severity: severity ?? this.severity,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      parameter: parameter ?? this.parameter,
+      value: value ?? this.value,
+      threshold: threshold ?? this.threshold,
+      detectedAt: detectedAt ?? this.detectedAt,
+      isRead: isRead ?? this.isRead,
+      isResolved: isResolved ?? this.isResolved,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+    );
+  }
 }

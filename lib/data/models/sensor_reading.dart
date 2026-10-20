@@ -11,6 +11,8 @@ class SensorReading {
   final double temperature;
   final double waterLevel;
   final double? directQualityScore;
+  final double? rawTemperature;
+  final bool isProbeDisconnected;
 
   SensorReading({
     required this.id,
@@ -23,6 +25,8 @@ class SensorReading {
     required this.temperature,
     required this.waterLevel,
     this.directQualityScore,
+    this.rawTemperature,
+    this.isProbeDisconnected = false,
   });
 
   factory SensorReading.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,7 @@ class SensorReading {
     final tds = json.containsKey('field1') ? parseVal(json['field1'], 235.0) : parseVal(json['tds'], 235.0);
     final ph = json.containsKey('field2') ? parseVal(json['field2'], 7.2) : parseVal(json['ph'], 7.2);
     final rawTemp = json.containsKey('field3') ? parseVal(json['field3'], 26.5) : parseVal(json['temperature'], 26.5);
+    final probeDisconnected = rawTemp <= -50.0 || rawTemp == -127.0;
     // DS18B20 digital temperature sensors return -127.0 when wire is disconnected or floating
     final temperature = (rawTemp < 0 || rawTemp > 65) ? 27.5 : rawTemp;
     final turbidity = parseVal(json['turbidity'], 1.2);
@@ -79,6 +84,8 @@ class SensorReading {
       temperature: temperature,
       waterLevel: parseVal(json['water_level'], 78.0),
       directQualityScore: rawQuality >= 0 ? rawQuality : null,
+      rawTemperature: rawTemp,
+      isProbeDisconnected: probeDisconnected,
     );
   }
 
@@ -94,6 +101,8 @@ class SensorReading {
       temperature: 0.0,
       waterLevel: 0.0,
       directQualityScore: 0.0,
+      rawTemperature: 0.0,
+      isProbeDisconnected: false,
     );
   }
 
