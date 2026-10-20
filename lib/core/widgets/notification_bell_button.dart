@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/app_providers.dart';
-import '../services/mock_sensor_service.dart';
 
 class NotificationBellButton extends ConsumerWidget {
   const NotificationBellButton({super.key});
@@ -11,7 +10,7 @@ class NotificationBellButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alertsAsync = ref.watch(alertsProvider);
-    final alerts = alertsAsync.value ?? MockSensorService.instance.getAlerts();
+    final alerts = alertsAsync.value ?? [];
     final unreadCount = alerts.where((a) => !a.isRead).length;
 
     return Tooltip(
