@@ -166,25 +166,24 @@ float calculateWaterQuality(float tds, float ph, float temperature) {
   return constrain(finalScore, 0.0, 100.0);
 }
 
-// BIS IS 10500 assessment string for LCD Line 2
-// Scientific disclaimer: probes monitor physicochemical indicators; microbial testing required.
-String getWaterQualityStatus(float tds, float ph, bool tempValid) {
+// Safety category assessment string for LCD Line 2
+// Evaluates water quality score and sensor ranges to determine if water is safe to drink
+String getWaterQualitySafetyMessage(float quality, float tds, float ph, bool tempValid) {
   if (!tempValid) {
-    return "Prov: Temp Err";
+    return "Check Temp Probe";
   }
-  if (ph < 6.5 || ph > 8.5) {
-    return "pH Out of Range";
+  // Critical danger thresholds
+  if (ph < 6.0 || ph > 9.0 || tds > 1500.0 || quality < 50.0) {
+    return "Unsafe to Drink!";
+  } 
+  // Moderate / caution thresholds
+  else if (ph < 6.5 || ph > 8.5 || tds > 500.0 || quality < 80.0) {
+    return "Moderate / Boil";
+  } 
+  // Meets drinking water targets
+  else {
+    return "Safe to Drink";
   }
-  if (tds > 2000.0) {
-    return "TDS > 2000 Perm";
-  }
-  if (tds > 500.0) {
-    return "TDS > 500 Accept";
-  }
-  if (tds > 300.0) {
-    return "TDS > 300 Target";
-  }
-  return "Limits Normal";
 }
 
 // ============================================================
@@ -192,39 +191,39 @@ String getWaterQualityStatus(float tds, float ph, bool tempValid) {
 // ============================================================
 int lcdDisplayCycle = 0;
 
-void updateLCD(float quality, String status, float tds, float ph, float temp) {
+void updateLCD(float quality, String safetyMessage, float tds, float ph, float temp) {
   lcd.clear();
   lcdDisplayCycle = (lcdDisplayCycle + 1) % 4;
 
   if (lcdDisplayCycle < 2) {
-    // Page 1: Telemetry readings
-    // Line 1: TDS and pH
+    // PAGE 1: Water Quality Percentage & Safety Drink Message
+    // Line 1: Percentage of Water Quality
+    lcd.setCursor(0, 0);
+    lcd.print("Purity: ");
+    lcd.print(quality, 1);
+    lcd.print("%");
+
+    // Line 2: Relevant Safety Message (Safe to Drink / Moderate / Unsafe)
+    lcd.setCursor(0, 1);
+    lcd.print(safetyMessage);
+  } else {
+    // PAGE 2: Live Sensor Parameters (TDS, pH, Temperature)
+    // Line 1: TDS and pH readings
     lcd.setCursor(0, 0);
     lcd.print("TDS:");
     lcd.print((int)tds);
     lcd.print(" pH:");
     lcd.print(ph, 1);
 
-    // Line 2: Temperature & Quality Score
+    // Line 2: Temperature reading
     lcd.setCursor(0, 1);
     if (!isTemperatureSensorValid) {
-      lcd.print("T:ERR  Q:");
+      lcd.print("Temp: SENSOR ERR");
     } else {
-      lcd.print("T:");
+      lcd.print("Temp: ");
       lcd.print(temp, 1);
-      lcd.print("C Q:");
+      lcd.print(" C");
     }
-    lcd.print((int)quality);
-    lcd.print("%");
-  } else {
-    // Page 2: BIS IS 10500 Status & Laboratory Verification Notice
-    // Line 1: Status Classification
-    lcd.setCursor(0, 0);
-    lcd.print(status.substring(0, 16));
-
-    // Line 2: Mandatory scientific verification reminder
-    lcd.setCursor(0, 1);
-    lcd.print("Lab Verif Req.");
   }
 }
 
@@ -353,11 +352,11 @@ void loop() {
   float ph          = readPH();
 
   // 2. Calculate Purity Score & Category
-  float quality     = calculateWaterQuality(tds, ph, temperature);
-  String status     = getWaterQualityStatus(tds, ph, isTemperatureSensorValid);
+  float quality       = calculateWaterQuality(tds, ph, temperature);
+  String safetyStatus = getWaterQualitySafetyMessage(quality, tds, ph, isTemperatureSensorValid);
 
   // 3. Update LCD Screen in Real-Time
-  updateLCD(quality, status, tds, ph, temperature);
+  updateLCD(quality, safetyStatus, tds, ph, temperature);
 
   // 4. Print telemetry to Serial Monitor
   Serial.println("\n========================================");
@@ -365,7 +364,7 @@ void loop() {
   Serial.print("pH Level       : "); Serial.println(ph, 2);
   Serial.print("Temperature    : "); Serial.print(temperature, 1); Serial.println(" C");
   Serial.print("Purity Quality : "); Serial.print(quality, 1); Serial.println(" %");
-  Serial.print("Status         : "); Serial.println(status);
+  Serial.print("Safety Status  : "); Serial.println(safetyStatus);
   Serial.println("========================================");
 
   // 5. Send to ThingSpeak every 20 seconds (non-blocking)
