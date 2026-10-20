@@ -74,6 +74,7 @@ class _GraphsScreenState extends ConsumerState<GraphsScreen> {
       ref.invalidate(historicalReadingsProvider('tank-main'));
       ref.invalidate(liveSensorStreamProvider);
       ref.invalidate(latestReadingProvider('tank-main'));
+      ref.invalidate(alertsProvider);
       setState(() {});
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

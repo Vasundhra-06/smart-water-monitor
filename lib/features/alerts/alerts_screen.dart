@@ -46,6 +46,15 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
     return 0;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(alertRepositoryProvider).markAllAsRead();
+      ref.invalidate(alertsProvider);
+    });
+  }
+
   IconData _getCategoryIcon(String type, String severity) {
     if (type == 'cleaning') {
       return Icons.cleaning_services;
@@ -103,6 +112,23 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('All alerts marked as read.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.delete_sweep_rounded, color: Color(0xFFEF4444), size: 18),
+            label: const Text(
+              'Clear All',
+              style: TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              ref.read(alertRepositoryProvider).clearAllAlerts();
+              ref.invalidate(alertsProvider);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('All notifications cleared.'),
                   duration: Duration(seconds: 2),
                 ),
               );
@@ -218,7 +244,43 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+
+          // Clear All Notifications Bar Button inside the tab
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.5), width: 1.2),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 20, color: Color(0xFFEF4444)),
+                    label: const Text(
+                      'CLEAR ALL NOTIFICATIONS',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.6),
+                    ),
+                    onPressed: () {
+                      ref.read(alertRepositoryProvider).clearAllAlerts();
+                      ref.invalidate(alertsProvider);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('All notifications cleared successfully.'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
 
           // Alerts List (Clickable Alert Cards)
           Expanded(

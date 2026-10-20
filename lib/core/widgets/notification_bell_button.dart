@@ -21,7 +21,11 @@ class NotificationBellButton extends ConsumerWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 24),
-            onPressed: () => context.push('/alerts'),
+            onPressed: () {
+              ref.read(alertRepositoryProvider).markAllAsRead();
+              ref.invalidate(alertsProvider);
+              context.push('/alerts');
+            },
           ),
           if (unreadCount > 0)
             Positioned(

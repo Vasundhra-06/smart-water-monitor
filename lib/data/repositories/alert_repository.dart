@@ -5,12 +5,24 @@ abstract class IAlertRepository {
   Future<List<AlertItem>> getAlerts();
   void markAsRead(String alertId);
   void markAllAsRead();
+  void clearAllAlerts();
+  bool get isCleared;
 }
 
 class AlertRepository implements IAlertRepository {
   final ThingSpeakHttpService _service = ThingSpeakHttpService.instance;
   static final Set<String> _readAlertIds = {};
   static final Set<String> _currentAlertIds = {};
+  static bool _isCleared = false;
+
+  @override
+  bool get isCleared => _isCleared;
+
+  @override
+  void clearAllAlerts() {
+    _isCleared = true;
+    _readAlertIds.addAll(_currentAlertIds);
+  }
 
   @override
   void markAsRead(String alertId) {
@@ -24,6 +36,9 @@ class AlertRepository implements IAlertRepository {
 
   @override
   Future<List<AlertItem>> getAlerts() async {
+    if (_isCleared) {
+      return [];
+    }
     final reading = await _service.fetchLatestReading();
     final List<AlertItem> alerts = [];
     final now = DateTime.now();

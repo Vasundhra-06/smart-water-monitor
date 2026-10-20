@@ -444,6 +444,7 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                     ref.invalidate(historicalReadingsStreamProvider(widget.tankId));
                     ref.invalidate(historicalReadingsProvider(widget.tankId));
                     ref.invalidate(liveSensorStreamProvider);
+                    ref.invalidate(alertsProvider);
                     setState(() {});
                   },
                   borderRadius: BorderRadius.circular(8),

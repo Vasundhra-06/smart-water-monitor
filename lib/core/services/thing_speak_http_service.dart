@@ -90,13 +90,11 @@ class ThingSpeakHttpService {
     fetchLatestReading();
     fetchHistoricalReadings('tank-main');
 
-    // Poll ThingSpeak every 15 seconds to respect ThingSpeak rates
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+    // Poll ThingSpeak every 20 seconds to stream fresh sensor readings and update graph
+    _pollingTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
       final reading = await fetchLatestReading();
-      if (!_isResetMode) {
-        if (_cachedHistory.isEmpty || (_cachedHistory.isNotEmpty && _cachedHistory.last.id != reading.id)) {
-          await fetchHistoricalReadings('tank-main');
-        }
+      if (!_isResetMode && !reading.isZero) {
+        await fetchHistoricalReadings('tank-main');
       }
     });
   }
@@ -124,6 +122,8 @@ class ThingSpeakHttpService {
               final reading = SensorReading.fromThingSpeakBackendJson(data, tankId: tankId);
               _lastFetchedReading = reading;
               _streamController.add(reading);
+              // Fetch new history containing only post-reset dipped entries
+              await fetchHistoricalReadings(tankId);
               return reading;
             } else {
               // Still awaiting sensor dipping
@@ -215,7 +215,7 @@ class ThingSpeakHttpService {
               .map((item) => SensorReading.fromThingSpeakBackendJson(item, tankId: tankId))
               .toList();
 
-          if (_isResetMode) {
+          if (_isResetMode || _resetMinEntryId > 0) {
             list = list.where((r) => (int.tryParse(r.id) ?? 0) > _resetMinEntryId).toList();
             if (list.isEmpty) {
               _cachedHistory = [];
@@ -275,7 +275,7 @@ class ThingSpeakHttpService {
       }
     } catch (_) {}
 
-    if (_isResetMode) {
+    if (_isResetMode || (_resetMinEntryId > 0 && _cachedHistory.isEmpty)) {
       _cachedHistory = [];
       _historyStreamController.add([]);
       return [];
