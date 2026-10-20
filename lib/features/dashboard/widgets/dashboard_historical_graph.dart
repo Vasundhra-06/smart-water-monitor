@@ -468,6 +468,30 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => _exportTelemetryCsv(context, readings),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppConstants.accentCyan.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.5)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.file_download_outlined, size: 12, color: AppConstants.accentCyan),
+                        SizedBox(width: 4),
+                        Text(
+                          'Export CSV',
+                          style: TextStyle(color: AppConstants.accentCyan, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -815,6 +839,61 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
         Text('$title: ', style: const TextStyle(color: Colors.white54, fontSize: 11)),
         Text(val, style: TextStyle(color: valColor, fontSize: 11, fontWeight: FontWeight.bold)),
       ],
+    );
+  }
+
+  void _exportTelemetryCsv(BuildContext context, List<SensorReading> list) {
+    if (list.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No telemetry records available to export.')),
+      );
+      return;
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('Timestamp,Entry_ID,Compensated_TDS_25C_ppm,Raw_TDS_ppm,pH,Temperature_C,Water_Quality_Score_pct,Scientific_Status');
+    for (var r in list) {
+      buffer.writeln('${r.timestamp.toIso8601String()},${r.id},${r.compensatedTds.toStringAsFixed(1)},${r.rawTds.toStringAsFixed(1)},${r.ph.toStringAsFixed(2)},${r.temperature.toStringAsFixed(1)},${r.waterQualityScore},"${r.overallScientificStatus}"');
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppConstants.darkCardBackground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppConstants.darkCardBorder),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.table_chart_rounded, color: AppConstants.accentCyan),
+            SizedBox(width: 8),
+            Text('Telemetry CSV Export', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Exported ${list.length} telemetry records including raw vs compensated TDS.', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              const SizedBox(height: 12),
+              Container(
+                height: 180,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: AppConstants.darkSurface, borderRadius: BorderRadius.circular(8)),
+                child: SingleChildScrollView(
+                  child: SelectableText(buffer.toString(), style: const TextStyle(color: Colors.white70, fontFamily: 'monospace', fontSize: 10)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close', style: TextStyle(color: Colors.white70))),
+        ],
+      ),
     );
   }
 }

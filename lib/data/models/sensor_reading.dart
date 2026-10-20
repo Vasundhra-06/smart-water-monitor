@@ -146,13 +146,63 @@ class SensorReading {
     return scoreAnalysis.score;
   }
 
+  // Temperature-compensated TDS normalized to 25°C (TDS25)
+  // Firmware applies: compVoltage = voltage / [1.0 + 0.02 * (temp - 25.0)]
+  double get compensatedTds => tds;
+
+  // Raw TDS estimate at current water temperature (uncompensated)
+  // TDST = TDS25 * [1.0 + 0.02 * (T - 25)]
+  double get rawTds {
+    if (isZero) return 0.0;
+    return tds * (1.0 + 0.020 * (temperature - 25.0));
+  }
+
+  // Electrical Conductivity Estimate (standard conversion factor 0.5)
+  // ECT = Raw TDS / 0.5 (µS/cm)
+  double get rawConductivityEstimate => rawTds / 0.5;
+
+  // Electrical Conductivity Normalized to 25°C
+  // EC25 = Compensated TDS / 0.5 (µS/cm)
+  double get compensatedConductivity25 => compensatedTds / 0.5;
+
+  // BIS IS 10500 pH Classification
+  String get bisPhStatus {
+    if (isZero) return 'Standby';
+    if (ph < 6.5) return 'Below pH Acceptable Range (<6.5)';
+    if (ph <= 8.5) return 'Within pH Acceptable Range (6.5 – 8.5)';
+    return 'Above pH Acceptable Range (>8.5)';
+  }
+
+  // BIS IS 10500 & Project Target TDS Classification
+  String get bisTdsStatus {
+    if (isZero) return 'Standby';
+    if (tds <= 300.0) return 'Project TDS Target Met (≤300 mg/L)';
+    if (tds <= 500.0) return 'Above Project Target — Within BIS Acceptable TDS Limit (≤500 mg/L)';
+    if (tds <= 2000.0) return 'Above BIS Acceptable TDS Limit (501 – 2000 mg/L)';
+    return 'Above BIS Permissible TDS Limit (>2000 mg/L)';
+  }
+
+  // Overall Scientific Drinking-Water Status
+  // (Recognizing pH/TDS cannot independently determine microbial safety)
+  String get overallScientificStatus {
+    if (isZero) return 'Standby Mode — Probes Unsubmerged';
+    if (isProbeDisconnected) return 'Invalid Sensor Reading — Probe Disconnected';
+    if (waterQualityScore >= 70 && ph >= 6.5 && ph <= 8.5 && tds <= 500.0) {
+      return 'Within Monitored Limits — laboratory verification required';
+    }
+    if (waterQualityScore >= 40) {
+      return 'Water Quality Warning — Parameter Deviation';
+    }
+    return 'Water Quality Alert — Immediate Inspection Required';
+  }
+
   String get qualityZone {
     if (isZero) return 'Standby';
     if (directQualityScore != null && directQualityScore! >= 0) {
       final q = directQualityScore!;
-      if (q >= 80) return 'Safe to Drink';
-      if (q >= 50) return 'Moderate / Boil';
-      return 'Unsafe / Treat';
+      if (q >= 70) return 'Monitored Limits Met';
+      if (q >= 40) return 'Warning';
+      return 'Danger';
     }
     return scoreAnalysis.status;
   }

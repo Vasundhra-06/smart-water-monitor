@@ -363,24 +363,84 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildSensorCardsGrid(BuildContext context, SensorReading reading) {
     final isZero = reading.isZero;
 
-    final phStatus = isZero ? 'Standby' : (reading.ph >= 6.5 && reading.ph <= 8.5 ? 'Good' : 'Attention');
+    final phStatus = isZero ? 'Standby' : reading.bisPhStatus;
     final phColor = isZero ? Colors.white38 : (reading.ph >= 6.5 && reading.ph <= 8.5 ? AppConstants.colorGood : AppConstants.colorAttention);
 
-    final tdsStatus = isZero ? 'Standby' : (reading.tds > 400 ? 'Attention' : 'Good');
-    final tdsColor = isZero ? Colors.white38 : (reading.tds > 400 ? AppConstants.colorAttention : AppConstants.colorGood);
+    final tdsStatus = isZero ? 'Standby' : (reading.tds <= 500 ? 'Within BIS Limit' : 'Above BIS Limit');
+    final tdsColor = isZero ? Colors.white38 : (reading.tds <= 500 ? AppConstants.colorGood : AppConstants.colorAttention);
 
     final qualityColor = isZero ? Colors.white38 : AppConstants.getScoreColor(reading.waterQualityScore);
 
-    final tempStatus = isZero ? 'Standby' : 'Good';
+    final tempStatus = isZero ? 'Standby' : (reading.temperature >= 20 && reading.temperature <= 30 ? 'Optimal (20–30°C)' : 'Deviation');
     final tempColor = isZero ? Colors.white38 : AppConstants.colorGood;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Active Calibration Banner linking to Calibration View
+        InkWell(
+          onTap: () => context.push('/calibration'),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppConstants.darkSurface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppConstants.accentCyan.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.verified_outlined, color: AppConstants.accentCyan, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('CALIBRATION PROFILE: v1.4-std (Validated)', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                      SizedBox(height: 1),
+                      Text('TDS compensated to 25°C baseline (α = 0.020/°C) • Tap for Calibration Graph', style: TextStyle(color: Colors.white60, fontSize: 10)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: AppConstants.accentCyan, size: 18),
+              ],
+            ),
+          ),
+        ),
+
+        // Parameter Cards Grid
         Row(
           children: [
-            Expanded(child: _buildSensorCard(context, 'pH Level', isZero ? '0.0' : '${reading.ph}', phStatus, Icons.opacity, phColor, 'pH', reading.ph, '')),
+            Expanded(
+              child: _buildSensorCard(
+                context,
+                'pH Level',
+                isZero ? '0.0' : reading.ph.toStringAsFixed(2),
+                phStatus,
+                Icons.opacity,
+                phColor,
+                'pH',
+                reading.ph,
+                '',
+                subtitleText: isZero ? 'Standby' : 'Target: 6.5 – 8.5',
+              ),
+            ),
             const SizedBox(width: 12),
-            Expanded(child: _buildSensorCard(context, 'TDS', isZero ? '0 ppm' : '${reading.tds.toStringAsFixed(0)} ppm', tdsStatus, Icons.grain_rounded, tdsColor, 'TDS', reading.tds, 'ppm')),
+            Expanded(
+              child: _buildSensorCard(
+                context,
+                'TDS (Compensated @ 25°C)',
+                isZero ? '0 ppm' : '${reading.compensatedTds.toStringAsFixed(0)} ppm',
+                tdsStatus,
+                Icons.grain_rounded,
+                tdsColor,
+                'TDS',
+                reading.compensatedTds,
+                'ppm',
+                subtitleText: isZero ? 'Standby' : 'Raw: ${reading.rawTds.toStringAsFixed(0)} ppm (EC: ${reading.compensatedConductivity25.toStringAsFixed(0)} µS/cm)',
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -389,19 +449,56 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Expanded(
               child: _buildSensorCard(
                 context,
-                'Water Quality',
+                'Water Quality Index',
                 isZero ? '0%' : '${reading.waterQualityScore}%',
-                isZero ? 'Standby' : reading.qualityZone,
+                isZero ? 'Standby' : (reading.waterQualityScore >= 70 ? 'Within Monitored Limits' : 'Review Required'),
                 Icons.verified_rounded,
                 qualityColor,
                 'Water Quality',
                 reading.waterQualityScore.toDouble(),
                 '%',
+                subtitleText: isZero ? 'Standby' : reading.overallScientificStatus,
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: _buildSensorCard(context, 'Temperature', isZero ? '0.0 °C' : '${reading.temperature.toStringAsFixed(1)} °C', tempStatus, Icons.thermostat_rounded, tempColor, 'Temperature', reading.temperature, '°C')),
+            Expanded(
+              child: _buildSensorCard(
+                context,
+                'Water Temperature',
+                isZero ? '0.0 °C' : '${reading.temperature.toStringAsFixed(1)} °C',
+                tempStatus,
+                Icons.thermostat_rounded,
+                tempColor,
+                'Temperature',
+                reading.temperature,
+                '°C',
+                subtitleText: isZero ? 'Standby' : 'Optimal: 20 – 30 °C',
+              ),
+            ),
           ],
+        ),
+        const SizedBox(height: 10),
+
+        // Scientific Drinking-Water Disclaimer Bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppConstants.darkSurface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppConstants.darkCardBorder),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.health_and_safety_outlined, color: AppConstants.accentCyan, size: 16),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Scientific Notice: Monitored against BIS IS 10500 standards. Sensors cannot independently determine microbial safety or detect heavy metals; laboratory verification required.',
+                  style: TextStyle(color: Colors.white60, fontSize: 10, height: 1.3),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -418,6 +515,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     double rawVal,
     String unit, {
     bool isFullWidth = false,
+    String? subtitleText,
   }) {
     return GestureDetector(
       onTap: () {
@@ -440,21 +538,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                Expanded(child: Text(title, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 Icon(icon, color: color, size: 20),
               ],
             ),
             const SizedBox(height: 8),
             Text(value, style: GoogleFonts.inter(color: Colors.white, fontSize: isFullWidth ? 22 : 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(status, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+              child: Text(status, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
+            if (subtitleText != null && subtitleText.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                subtitleText,
+                style: const TextStyle(color: Colors.white54, fontSize: 10),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ],
         ),
       ),

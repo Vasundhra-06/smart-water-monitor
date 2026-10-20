@@ -5,6 +5,7 @@ import '../../data/models/sensor_reading.dart';
 import '../../data/models/alert.dart';
 import '../../data/models/cleaning_record.dart';
 import '../../data/models/ai_analysis_result.dart';
+import '../../data/models/calibration_profile.dart';
 import '../../data/repositories/sensor_repository.dart';
 import '../../data/repositories/tank_repository.dart';
 import '../../data/repositories/alert_repository.dart';
@@ -13,6 +14,7 @@ import '../../data/repositories/ai_repository.dart';
 import '../constants/app_constants.dart';
 import '../services/mock_sensor_service.dart';
 import '../services/thing_speak_http_service.dart';
+import '../services/calibration_service.dart';
 
 // Repository Providers
 final sensorRepositoryProvider = Provider<ISensorRepository>((ref) => SensorRepository());
@@ -82,3 +84,9 @@ final cleaningHistoryProvider = FutureProvider.family<List<CleaningRecord>, Stri
   final repo = ref.watch(cleaningRepositoryProvider);
   return repo.getCleaningHistory(tankId);
 });
+
+// Calibration Profile Provider
+final calibrationProfileProvider = StateProvider<CalibrationProfile>((ref) {
+  return CalibrationService.instance.activeProfile;
+});
+

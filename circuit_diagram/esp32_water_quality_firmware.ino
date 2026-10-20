@@ -69,20 +69,26 @@ const unsigned long uploadInterval = 20000; // 20,000 ms = 20 seconds
 // SENSOR READING & SMOOTHING (Noise Filtering)
 // ============================================================
 
+// Track temperature sensor operational status
+bool isTemperatureSensorValid = true;
+
 // Read Temperature with DS18B20 error fallback
 float readTemperature() {
   temperatureSensor.requestTemperatures();
   float temp = temperatureSensor.getTempCByIndex(0);
 
-  // DS18B20 returns -127.00 when wire is disconnected or floating
+  // DS18B20 returns -127.00 when wire is disconnected or 85.00 on power-on error
   if (temp == -127.00 || temp == 85.00 || temp < 0.0 || temp > 75.0) {
-    Serial.println("Warning: DS18B20 read error! Check 4.7k resistor & wiring on GPIO 32. Using baseline 26.5 C.");
-    return 26.5; 
+    Serial.println("Warning: DS18B20 read error! Using provisional 25.0C baseline.");
+    isTemperatureSensorValid = false;
+    return 25.0; 
   }
+  isTemperatureSensorValid = true;
   return temp;
 }
 
 // Read TDS with multi-sample averaging & temperature compensation
+// Normalized to 25°C: EC25 = ECT / [1 + alpha * (T - 25)]
 float readTDS(float currentTemp) {
   long sum = 0;
   for (int i = 0; i < 20; i++) {
@@ -92,8 +98,12 @@ float readTDS(float currentTemp) {
   float rawADC = sum / 20.0;
   float voltage = (rawADC / 4095.0) * 3.3;
 
-  // Temperature compensation coefficient (standard 25 C baseline)
-  float compensationCoefficient = 1.0 + 0.02 * (currentTemp - 25.0);
+  // Temperature compensation coefficient (standard alpha = 0.02 / °C normalized to 25°C)
+  // Invalid temperature data triggers provisional flag rather than silent assumption
+  float compensationCoefficient = 1.0;
+  if (isTemperatureSensorValid) {
+    compensationCoefficient = 1.0 + 0.02 * (currentTemp - 25.0);
+  }
   float compensationVoltage = voltage / compensationCoefficient;
 
   // Standard Gravity TDS polynomial curve:
@@ -135,7 +145,7 @@ float calculateTDSScore(float tds) {
   if (tds <= 300.0) return 100.0;
   if (tds <= 500.0) return 100.0 - ((tds - 300.0) / 200.0 * 25.0);
   if (tds <= 1000.0) return 75.0 - ((tds - 500.0) / 500.0 * 45.0);
-  if (tds <= 1500.0) return 30.0 - ((tds - 1000.0) / 500.0 * 30.0);
+  if (tds <= 2000.0) return 30.0 - ((tds - 1000.0) / 1000.0 * 30.0);
   return 0.0;
 }
 
@@ -156,32 +166,66 @@ float calculateWaterQuality(float tds, float ph, float temperature) {
   return constrain(finalScore, 0.0, 100.0);
 }
 
-// Safety category assessment string for LCD Line 2
-String getWaterQualityStatus(float quality) {
-  if (quality >= 80.0) {
-    return "Safe to Drink";
-  } else if (quality >= 50.0) {
-    return "Moderate / Boil";
-  } else {
-    return "Unsafe / Treat";
+// BIS IS 10500 assessment string for LCD Line 2
+// Scientific disclaimer: probes monitor physicochemical indicators; microbial testing required.
+String getWaterQualityStatus(float tds, float ph, bool tempValid) {
+  if (!tempValid) {
+    return "Prov: Temp Err";
   }
+  if (ph < 6.5 || ph > 8.5) {
+    return "pH Out of Range";
+  }
+  if (tds > 2000.0) {
+    return "TDS > 2000 Perm";
+  }
+  if (tds > 500.0) {
+    return "TDS > 500 Accept";
+  }
+  if (tds > 300.0) {
+    return "TDS > 300 Target";
+  }
+  return "Limits Normal";
 }
 
 // ============================================================
-// LCD DISPLAY FUNCTION
+// LCD DISPLAY FUNCTION (16x2 Display with Alternating Page View)
 // ============================================================
+int lcdDisplayCycle = 0;
+
 void updateLCD(float quality, String status, float tds, float ph, float temp) {
   lcd.clear();
+  lcdDisplayCycle = (lcdDisplayCycle + 1) % 4;
 
-  // Line 1: Purity Percentage & Temp
-  lcd.setCursor(0, 0);
-  lcd.print("Purity: ");
-  lcd.print(quality, 1);
-  lcd.print("%");
+  if (lcdDisplayCycle < 2) {
+    // Page 1: Telemetry readings
+    // Line 1: TDS and pH
+    lcd.setCursor(0, 0);
+    lcd.print("TDS:");
+    lcd.print((int)tds);
+    lcd.print(" pH:");
+    lcd.print(ph, 1);
 
-  // Line 2: Descriptive Safety Message
-  lcd.setCursor(0, 1);
-  lcd.print(status);
+    // Line 2: Temperature & Quality Score
+    lcd.setCursor(0, 1);
+    if (!isTemperatureSensorValid) {
+      lcd.print("T:ERR  Q:");
+    } else {
+      lcd.print("T:");
+      lcd.print(temp, 1);
+      lcd.print("C Q:");
+    }
+    lcd.print((int)quality);
+    lcd.print("%");
+  } else {
+    // Page 2: BIS IS 10500 Status & Laboratory Verification Notice
+    // Line 1: Status Classification
+    lcd.setCursor(0, 0);
+    lcd.print(status.substring(0, 16));
+
+    // Line 2: Mandatory scientific verification reminder
+    lcd.setCursor(0, 1);
+    lcd.print("Lab Verif Req.");
+  }
 }
 
 // ============================================================
@@ -306,7 +350,7 @@ void loop() {
 
   // 2. Calculate Purity Score & Category
   float quality     = calculateWaterQuality(tds, ph, temperature);
-  String status     = getWaterQualityStatus(quality);
+  String status     = getWaterQualityStatus(tds, ph, isTemperatureSensorValid);
 
   // 3. Update LCD Screen in Real-Time
   updateLCD(quality, status, tds, ph, temperature);
