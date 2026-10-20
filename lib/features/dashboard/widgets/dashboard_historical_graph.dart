@@ -564,6 +564,37 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                           style: TextStyle(color: Colors.white60, fontSize: 12),
                           textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: () async {
+                            await ThingSpeakHttpService.instance.exitResetMode(tankId: widget.tankId);
+                            ref.invalidate(historicalReadingsStreamProvider(widget.tankId));
+                            ref.invalidate(historicalReadingsProvider(widget.tankId));
+                            ref.invalidate(liveSensorStreamProvider);
+                            ref.invalidate(alertsProvider);
+                            setState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: AppConstants.accentCyan.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppConstants.accentCyan),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.play_circle_outline_rounded, size: 14, color: AppConstants.accentCyan),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Resume Live Data Stream',
+                                  style: TextStyle(color: AppConstants.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   )

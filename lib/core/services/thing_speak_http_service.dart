@@ -85,6 +85,19 @@ class ThingSpeakHttpService {
     _historyStreamController.add([]);
   }
 
+  Future<void> exitResetMode({String tankId = 'tank-main'}) async {
+    _isResetMode = false;
+    _resetMinEntryId = 0;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('sensor_reset_mode', false);
+      await prefs.remove('sensor_reset_min_entry_id');
+      await prefs.remove('sensor_reset_timestamp');
+    } catch (_) {}
+    await fetchLatestReading(tankId: tankId);
+    await fetchHistoricalReadings(tankId);
+  }
+
   void _startPolling() {
     // Initial fetch immediately
     fetchLatestReading();

@@ -43,7 +43,7 @@ const char* WIFI_PASSWORD = "priyanka.m";
 // THINGSPEAK CLOUD CONFIGURATION
 // ============================================================
 const char* THINGSPEAK_WRITE_API_KEY = "7W0H8Z3RN171CGD8";
-const char* THINGSPEAK_URL           = "https://api.thingspeak.com/update";
+const char* THINGSPEAK_URL           = "http://api.thingspeak.com/update";
 
 // Optional local backend URL (set to "" or keep with low timeout)
 const char* WEB_API_URL = ""; 
@@ -261,6 +261,7 @@ void sendToThingSpeak(float tds, float ph, float temperature, float quality) {
     return;
   }
 
+  WiFiClient client;
   HTTPClient http;
   String url = String(THINGSPEAK_URL) +
                "?api_key=" + THINGSPEAK_WRITE_API_KEY +
@@ -272,7 +273,7 @@ void sendToThingSpeak(float tds, float ph, float temperature, float quality) {
   Serial.println("\n>>> Uploading to ThingSpeak Channel 3487158...");
   Serial.println(url);
 
-  http.begin(url);
+  http.begin(client, url);
   http.setTimeout(7000); // 7s timeout to prevent blocking
   int httpCode = http.GET();
   Serial.print("ThingSpeak HTTP Code: ");
@@ -285,6 +286,9 @@ void sendToThingSpeak(float tds, float ph, float temperature, float quality) {
   } else {
     Serial.print("Upload failed with error code: ");
     Serial.println(httpCode);
+    if (httpCode == -1) {
+      Serial.println("Hint: Connection error or timeout. Check WiFi connection.");
+    }
   }
   http.end();
 }
