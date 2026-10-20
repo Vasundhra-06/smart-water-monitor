@@ -2,230 +2,331 @@
   ================================================================================
   SMART WATER QUALITY MONITORING SYSTEM - ESP32 FIRMWARE
   ================================================================================
-  Architecture Flow:
-    ESP32 Sensors -> Calculate Score -> Upload to ThingSpeak -> Python Backend -> Flutter
-  
-  Field Mapping (ThingSpeak Channel 3487158):
-    field1 = TDS (ppm)
-    field2 = pH
-    field3 = Temperature (°C)
-    field4 = Water Quality Score (%)
+  Hardware Connections:
+    - DS18B20 Temp Sensor : GPIO 32 (with 4.7k pullup resistor between VCC & DATA)
+    - Analog TDS Sensor    : GPIO 35 (ADC1_CH7)
+    - Analog pH Sensor     : GPIO 34 (ADC1_CH6)
+    - I2C LCD (16x2)       : SDA -> GPIO 21, SCL -> GPIO 22, VCC -> 5V (VIN), GND -> GND
+
+  ThingSpeak Channel 3487158:
+    - field1 : TDS (ppm)
+    - field2 : pH Level
+    - field3 : Temperature (°C)
+    - field4 : Purity / Quality Percentage (%)
+
+  Web Application URL:
+    - https://smart-water-monitor-self.vercel.app
   ================================================================================
 */
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <LiquidCrystal.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
 
-// --- CONFIGURATION ---
-const char* WIFI_SSID = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* THINGSPEAK_WRITE_API_KEY = "YOUR_THINGSPEAK_WRITE_API_KEY";
-const char* THINGSPEAK_URL = "http://api.thingspeak.com/update";
+// ============================================================
+// LCD CONFIGURATION (I2C)
+// Default ESP32 I2C pins: SDA = 21, SCL = 22
+// Address is commonly 0x27 or 0x3F
+// ============================================================
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// --- PIN ASSIGNMENTS ---
-#define TEMP_PIN       4   // DS18B20 OneWire Temp Sensor
-#define PH_PIN         32  // pH Sensor Analog Output (ADC1_CH4)
-#define TDS_PIN        34  // TDS Meter Analog Output (ADC1_CH6)
-#define TURBIDITY_PIN  35  // Turbidity Sensor Analog Output (ADC1_CH7)
+// ============================================================
+// WI-FI CREDENTIALS
+// ============================================================
+const char* WIFI_SSID     = "Mickymouse";
+const char* WIFI_PASSWORD = "priyanka.m";
 
-// LCD Pins: RS=19, E=23, D4=18, D5=17, D6=16, D7=15
-LiquidCrystal lcd(19, 23, 18, 17, 16, 15);
+// ============================================================
+// THINGSPEAK CLOUD CONFIGURATION
+// ============================================================
+const char* THINGSPEAK_WRITE_API_KEY = "7W0H8Z3RN171CGD8";
+const char* THINGSPEAK_URL           = "https://api.thingspeak.com/update";
 
-// OneWire Temperature Setup
+// Optional local backend URL (set to "" or keep with low timeout)
+const char* WEB_API_URL = ""; 
+
+// ============================================================
+// SENSOR PINS
+// ============================================================
+#define TEMP_PIN 32  // DS18B20 digital temperature probe
+#define TDS_PIN  35  // Analog TDS meter output
+#define PH_PIN   34  // Analog pH sensor output
+
+// ============================================================
+// TEMPERATURE SENSOR
+// ============================================================
 OneWire oneWire(TEMP_PIN);
-DallasTemperature tempSensor(&oneWire);
+DallasTemperature temperatureSensor(&oneWire);
 
-// Timing variables
+// Timing variables (Upload every 20 seconds)
 unsigned long lastUploadTime = 0;
-const unsigned long uploadInterval = 20000; // Upload to ThingSpeak every 20s
+const unsigned long uploadInterval = 20000; // 20,000 ms = 20 seconds
 
-// -------------------------------------------------------------------
-// WATER QUALITY SCORE CALCULATION (SECTION 5 SPECIFICATION)
-// -------------------------------------------------------------------
-float calculateWaterQualityScore(float ph, float tds, float temp) {
-  // 1. pH Score calculation
-  float phScore = 100.0;
-  if (ph < 6.5) {
-    phScore = 100.0 - (6.5 - ph) * 20.0;
-  } else if (ph > 8.5) {
-    phScore = 100.0 - (ph - 8.5) * 20.0;
+// ============================================================
+// SENSOR READING & SMOOTHING (Noise Filtering)
+// ============================================================
+
+// Read Temperature with DS18B20 error fallback
+float readTemperature() {
+  temperatureSensor.requestTemperatures();
+  float temp = temperatureSensor.getTempCByIndex(0);
+
+  // DS18B20 returns -127.00 when wire is disconnected or floating
+  if (temp == -127.00 || temp == 85.00 || temp < 0.0 || temp > 75.0) {
+    Serial.println("Warning: DS18B20 read error! Check 4.7k resistor & wiring on GPIO 32. Using baseline 26.5 C.");
+    return 26.5; 
   }
-  if (phScore < 0.0) phScore = 0.0;
-
-  // 2. TDS Score calculation
-  float tdsScore = 100.0;
-  if (tds <= 300.0) {
-    tdsScore = 100.0;
-  } else if (tds <= 500.0) {
-    tdsScore = 100.0 - (tds - 300.0) * (20.0 / 200.0); // 100 -> 80
-  } else if (tds <= 1000.0) {
-    tdsScore = 80.0 - (tds - 500.0) * (40.0 / 500.0);   // 80 -> 40
-  } else if (tds <= 1500.0) {
-    tdsScore = 40.0 - (tds - 1000.0) * (40.0 / 500.0);  // 40 -> 0
-  } else {
-    tdsScore = 0.0;
-  }
-  if (tdsScore < 0.0) tdsScore = 0.0;
-
-  // 3. Temperature Score calculation
-  float tempScore = 100.0;
-  if (temp < 20.0) {
-    tempScore = 100.0 - (20.0 - temp) * 5.0;
-  } else if (temp > 30.0) {
-    tempScore = 100.0 - (temp - 30.0) * 5.0;
-  }
-  if (tempScore < 0.0) tempScore = 0.0;
-
-  // 4. Combined weighted score
-  float finalScore = (phScore * 0.40) + (tdsScore * 0.40) + (tempScore * 0.20);
-  if (finalScore < 0.0) finalScore = 0.0;
-  if (finalScore > 100.0) finalScore = 100.0;
-
-  return finalScore;
+  return temp;
 }
 
-void connectToWiFi() {
+// Read TDS with multi-sample averaging & temperature compensation
+float readTDS(float currentTemp) {
+  long sum = 0;
+  for (int i = 0; i < 20; i++) {
+    sum += analogRead(TDS_PIN);
+    delay(2);
+  }
+  float rawADC = sum / 20.0;
+  float voltage = (rawADC / 4095.0) * 3.3;
+
+  // Temperature compensation coefficient (standard 25 C baseline)
+  float compensationCoefficient = 1.0 + 0.02 * (currentTemp - 25.0);
+  float compensationVoltage = voltage / compensationCoefficient;
+
+  // Standard Gravity TDS polynomial curve:
+  float tds = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage 
+              - 255.86 * compensationVoltage * compensationVoltage 
+              + 857.39 * compensationVoltage) * 0.5;
+
+  if (tds < 0.0) tds = 0.0;
+  return tds;
+}
+
+// Read pH with multi-sample averaging & calibration curve
+float readPH() {
+  long sum = 0;
+  for (int i = 0; i < 20; i++) {
+    sum += analogRead(PH_PIN);
+    delay(2);
+  }
+  float rawADC = sum / 20.0;
+  float voltage = (rawADC / 4095.0) * 3.3;
+
+  // pH probe slope (pH 7.0 calibration at standard 2.5V reference)
+  float ph = 7.0 + ((2.50 - voltage) * 3.50);
+  return constrain(ph, 0.0, 14.0);
+}
+
+// ============================================================
+// WATER QUALITY SCORING (0.0 to 100.0%)
+// ============================================================
+
+float calculatePHScore(float ph) {
+  if (ph >= 6.5 && ph <= 8.5) return 100.0;
+  float diff = (ph < 6.5) ? (6.5 - ph) : (ph - 8.5);
+  float score = 100.0 - (diff * 25.0);
+  return constrain(score, 0.0, 100.0);
+}
+
+float calculateTDSScore(float tds) {
+  if (tds <= 300.0) return 100.0;
+  if (tds <= 500.0) return 100.0 - ((tds - 300.0) / 200.0 * 25.0);
+  if (tds <= 1000.0) return 75.0 - ((tds - 500.0) / 500.0 * 45.0);
+  if (tds <= 1500.0) return 30.0 - ((tds - 1000.0) / 500.0 * 30.0);
+  return 0.0;
+}
+
+float calculateTemperatureScore(float temperature) {
+  if (temperature >= 20.0 && temperature <= 30.0) return 100.0;
+  float diff = (temperature < 20.0) ? (20.0 - temperature) : (temperature - 30.0);
+  float score = 100.0 - (diff * 5.0);
+  return constrain(score, 0.0, 100.0);
+}
+
+// Weighted percentage: TDS 45%, pH 40%, Temperature 15%
+float calculateWaterQuality(float tds, float ph, float temperature) {
+  float tdsScore         = calculateTDSScore(tds);
+  float phScore          = calculatePHScore(ph);
+  float temperatureScore = calculateTemperatureScore(temperature);
+
+  float finalScore = (tdsScore * 0.45) + (phScore * 0.40) + (temperatureScore * 0.15);
+  return constrain(finalScore, 0.0, 100.0);
+}
+
+// Safety category assessment string for LCD Line 2
+String getWaterQualityStatus(float quality) {
+  if (quality >= 80.0) {
+    return "Safe to Drink";
+  } else if (quality >= 50.0) {
+    return "Moderate / Boil";
+  } else {
+    return "Unsafe / Treat";
+  }
+}
+
+// ============================================================
+// LCD DISPLAY FUNCTION
+// ============================================================
+void updateLCD(float quality, String status, float tds, float ph, float temp) {
+  lcd.clear();
+
+  // Line 1: Purity Percentage & Temp
+  lcd.setCursor(0, 0);
+  lcd.print("Purity: ");
+  lcd.print(quality, 1);
+  lcd.print("%");
+
+  // Line 2: Descriptive Safety Message
+  lcd.setCursor(0, 1);
+  lcd.print(status);
+}
+
+// ============================================================
+// WI-FI CONNECTION & AUTO-RECONNECT
+// ============================================================
+void ensureWiFiConnected() {
   if (WiFi.status() == WL_CONNECTED) return;
-  Serial.print("Connecting to Wi-Fi: ");
-  Serial.println(WIFI_SSID);
+
+  Serial.println("WiFi reconnecting...");
+  WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
+
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < 8000) {
+    delay(300);
     Serial.print(".");
-    attempts++;
   }
+
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[Wi-Fi] Connected! IP: " + WiFi.localIP().toString());
+    Serial.println("\nWiFi Connected! IP: " + WiFi.localIP().toString());
   } else {
-    Serial.println("\n[Wi-Fi] Connection Failed. Operating offline.");
+    Serial.println("\nWiFi Connection failed. Will retry next cycle.");
   }
 }
 
-void uploadToThingSpeak(float tds, float ph, float temp, float score) {
+// ============================================================
+// SEND TELEMETRY TO THINGSPEAK (Every 20 Seconds)
+// ============================================================
+void sendToThingSpeak(float tds, float ph, float temperature, float quality) {
+  ensureWiFiConnected();
   if (WiFi.status() != WL_CONNECTED) {
-    connectToWiFi();
-    if (WiFi.status() != WL_CONNECTED) return;
+    Serial.println("ThingSpeak: Skipped (No WiFi)");
+    return;
   }
 
   HTTPClient http;
-  http.setTimeout(5000); // 5 second timeout to prevent ESP32 freeze
-  String postData = "api_key=" + String(THINGSPEAK_WRITE_API_KEY) +
-                    "&field1=" + String(tds, 1) +
-                    "&field2=" + String(ph, 2) +
-                    "&field3=" + String(temp, 1) +
-                    "&field4=" + String(score, 1);
+  String url = String(THINGSPEAK_URL) +
+               "?api_key=" + THINGSPEAK_WRITE_API_KEY +
+               "&field1=" + String(tds, 2) +
+               "&field2=" + String(ph, 2) +
+               "&field3=" + String(temperature, 2) +
+               "&field4=" + String(quality, 2);
 
-  http.begin(THINGSPEAK_URL);
-  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  Serial.println("\n>>> Uploading to ThingSpeak Channel 3487158...");
+  Serial.println(url);
 
-  int httpCode = http.POST(postData);
-  if (httpCode > 0) {
+  http.begin(url);
+  http.setTimeout(7000); // 7s timeout to prevent blocking
+  int httpCode = http.GET();
+  Serial.print("ThingSpeak HTTP Code: ");
+  Serial.println(httpCode);
+
+  if (httpCode == 200) {
     String response = http.getString();
-    Serial.println("[ThingSpeak] Upload Success. Entry ID: " + response);
+    Serial.print("Entry ID Created: ");
+    Serial.println(response);
   } else {
-    Serial.printf("[ThingSpeak] Upload Failed: %s (Error code %d)\n", http.errorToString(httpCode).c_str(), httpCode);
+    Serial.print("Upload failed with error code: ");
+    Serial.println(httpCode);
   }
   http.end();
 }
 
+// ============================================================
+// SETUP
+// ============================================================
 void setup() {
   Serial.begin(115200);
+  delay(1000);
 
-  // Initialize LCD Screen (16 Columns, 2 Rows)
-  lcd.begin(16, 2);
+  // Initialize I2C Bus & LCD
+  Wire.begin(21, 22); // Explicit SDA=21, SCL=22
+  lcd.init();
+  lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("SMART WATER SYS");
+  lcd.print("Smart Water Mon.");
   lcd.setCursor(0, 1);
-  lcd.print("INITIALIZING...");
+  lcd.print("Connecting WiFi");
+
+  // Initialize DS18B20 OneWire Sensor
+  temperatureSensor.begin();
+
+  // Connect to WiFi
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(WIFI_SSID);
+
+  int tries = 0;
+  while (WiFi.status() != WL_CONNECTED && tries < 20) {
+    delay(500);
+    Serial.print(".");
+    tries++;
+  }
+
+  lcd.clear();
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi Connected! IP: " + WiFi.localIP().toString());
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Connected!");
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP());
+  } else {
+    Serial.println("\nWiFi Timeout, continuing in offline buffer mode...");
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Offline");
+    lcd.setCursor(0, 1);
+    lcd.print("Local Monitoring");
+  }
   delay(2000);
-
-  // Initialize Temperature Probe
-  tempSensor.begin();
-
-  // Configure Analog Pins
-  pinMode(PH_PIN, INPUT);
-  pinMode(TDS_PIN, INPUT);
-  pinMode(TURBIDITY_PIN, INPUT);
-
-  // Initial Wi-Fi connection attempt
-  connectToWiFi();
-
-  Serial.println("\n=======================================================");
-  Serial.println("   SMART WATER QUALITY MONITORING SYSTEM READY         ");
-  Serial.println("=======================================================");
 }
 
+// ============================================================
+// MAIN LOOP
+// ============================================================
 void loop() {
-  // 1. READ TEMPERATURE (DS18B20)
-  tempSensor.requestTemperatures();
-  float tempC = tempSensor.getTempCByIndex(0);
-  if (tempC < -50 || tempC > 100) {
-    tempC = 25.0; // Default fallback temperature if probe disconnected
+  // 1. Read real sensor values from water
+  float temperature = readTemperature();
+  float tds         = readTDS(temperature);
+  float ph          = readPH();
+
+  // 2. Calculate Purity Score & Category
+  float quality     = calculateWaterQuality(tds, ph, temperature);
+  String status     = getWaterQualityStatus(quality);
+
+  // 3. Update LCD Screen in Real-Time
+  updateLCD(quality, status, tds, ph, temperature);
+
+  // 4. Print telemetry to Serial Monitor
+  Serial.println("\n========================================");
+  Serial.print("TDS (ppm)      : "); Serial.println(tds, 1);
+  Serial.print("pH Level       : "); Serial.println(ph, 2);
+  Serial.print("Temperature    : "); Serial.print(temperature, 1); Serial.println(" C");
+  Serial.print("Purity Quality : "); Serial.print(quality, 1); Serial.println(" %");
+  Serial.print("Status         : "); Serial.println(status);
+  Serial.println("========================================");
+
+  // 5. Send to ThingSpeak every 20 seconds (non-blocking)
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastUploadTime >= uploadInterval || lastUploadTime == 0) {
+    lastUploadTime = currentMillis;
+    sendToThingSpeak(tds, ph, temperature, quality);
   }
 
-  // 2. READ pH LEVEL (GPIO 32)
-  int rawPH = analogRead(PH_PIN);
-  float voltagePH = (rawPH / 4095.0) * 3.3;
-  float phValue = 3.5 * voltagePH + 0.5;
-  if (phValue < 0.0) phValue = 0.0;
-  if (phValue > 14.0) phValue = 14.0;
-
-  // 3. READ TDS VALUE (GPIO 34)
-  int rawTDS = analogRead(TDS_PIN);
-  float voltageTDS = (rawTDS / 4095.0) * 3.3;
-  float tdsValue = (133.42 * voltageTDS * voltageTDS * voltageTDS 
-                   - 255.86 * voltageTDS * voltageTDS 
-                   + 857.39 * voltageTDS) * 0.5;
-  if (tdsValue < 0.0) tdsValue = 0.0;
-
-  // 4. READ TURBIDITY VALUE (GPIO 35)
-  int rawTurb = analogRead(TURBIDITY_PIN);
-  float voltageTurb = (rawTurb / 4095.0) * 3.3;
-  float ntuValue = 0.0;
-  if (voltageTurb < 2.5) {
-    ntuValue = 3000.0;
-  } else {
-    ntuValue = -1120.4 * (voltageTurb * voltageTurb) + 5742.3 * voltageTurb - 4353.8;
-  }
-  if (ntuValue < 0.0) ntuValue = 0.0;
-
-  // 5. CALCULATE WATER QUALITY SCORE
-  float qualityScore = calculateWaterQualityScore(phValue, tdsValue, tempC);
-
-  // 6. UPDATE LOCAL LCD SCREEN
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Temp: ");
-  lcd.print(tempC, 1);
-  lcd.print("C pH:");
-  lcd.print(phValue, 1);
-
-  lcd.setCursor(0, 1);
-  lcd.print("TDS:");
-  lcd.print((int)tdsValue);
-  lcd.print(" Q:");
-  lcd.print((int)qualityScore);
-  lcd.print("%");
-
-  // 7. OUTPUT SERIAL LOG
-  Serial.println("-------------------------------------------------------");
-  Serial.print("🌡️ Temp : "); Serial.print(tempC, 1); Serial.println(" °C");
-  Serial.print("🧪 pH    : "); Serial.print(phValue, 2); Serial.println();
-  Serial.print("🧂 TDS   : "); Serial.print(tdsValue, 1); Serial.println(" PPM");
-  Serial.print("🌊 Turb  : "); Serial.print(ntuValue, 1); Serial.println(" NTU");
-  Serial.print("⭐ Score : "); Serial.print(qualityScore, 1); Serial.println(" %");
-  Serial.println("-------------------------------------------------------");
-
-  // 8. UPLOAD TO THINGSPEAK (Controlled Interval)
-  if (millis() - lastUploadTime >= uploadInterval) {
-    uploadToThingSpeak(tdsValue, phValue, tempC, qualityScore);
-    lastUploadTime = millis();
-  }
-
-  delay(3000);
+  // 2-second sampling interval for responsive LCD display
+  delay(2000);
 }
