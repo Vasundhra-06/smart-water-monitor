@@ -451,7 +451,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 context,
                 'Water Quality Index',
                 isZero ? '0%' : '${reading.waterQualityScore}%',
-                isZero ? 'Standby' : (reading.waterQualityScore >= 70 ? 'Within Monitored Limits' : 'Review Required'),
+                isZero ? 'Standby' : (reading.waterQualityScore >= 70 ? 'Safe to Drink' : (reading.waterQualityScore >= 40 ? 'Moderate Safe' : 'Unsafe to Drink!')),
                 Icons.verified_rounded,
                 qualityColor,
                 'Water Quality',

@@ -182,28 +182,25 @@ class SensorReading {
     return 'Above BIS Permissible TDS Limit (>2000 mg/L)';
   }
 
-  // Overall Scientific Drinking-Water Status
-  // (Recognizing pH/TDS cannot independently determine microbial safety)
+  // Overall Drinking-Water Status — based purely on overall quality score
+  // Thresholds: 70–100 = Safe to Drink, 40–69 = Moderate Safe, <40 = Unsafe
   String get overallScientificStatus {
     if (isZero) return 'Standby Mode — Probes Unsubmerged';
     if (isProbeDisconnected) return 'Invalid Sensor Reading — Probe Disconnected';
-    if (waterQualityScore >= 70 && ph >= 6.5 && ph <= 8.5 && tds <= 500.0) {
-      return 'Within Monitored Limits — laboratory verification required';
+    if (waterQualityScore >= 70) {
+      return 'Safe to Drink — Within Quality Limits';
     }
     if (waterQualityScore >= 40) {
-      return 'Water Quality Warning — Parameter Deviation';
+      return 'Moderate Safe — Monitor Parameters';
     }
-    return 'Water Quality Alert — Immediate Inspection Required';
+    return 'Unsafe to Drink! — Immediate Action Required';
   }
 
   String get qualityZone {
     if (isZero) return 'Standby';
-    if (directQualityScore != null && directQualityScore! >= 0) {
-      final q = directQualityScore!;
-      if (q >= 70) return 'Monitored Limits Met';
-      if (q >= 40) return 'Warning';
-      return 'Danger';
-    }
-    return scoreAnalysis.status;
+    final score = waterQualityScore;
+    if (score >= 70) return 'Safe to Drink';
+    if (score >= 40) return 'Moderate Safe';
+    return 'Unsafe to Drink!';
   }
 }
