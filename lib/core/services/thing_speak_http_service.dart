@@ -27,7 +27,6 @@ class ThingSpeakHttpService {
 
   // Reset mode permanently disabled — always show live data
   bool get isResetMode => false;
-  int get _resetMinEntryId => 0;
 
   // Clears any stale reset mode stored from previous sessions
   Future<void> _clearOldResetMode() async {
