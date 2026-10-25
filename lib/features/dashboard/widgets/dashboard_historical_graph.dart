@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/providers/app_providers.dart';
@@ -578,21 +579,27 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 22,
+                            reservedSize: 28,
                             interval: (readings.length > 8 ? (readings.length / 5).floorToDouble().clamp(1.0, 30.0) : 1.0),
                             getTitlesWidget: (val, meta) {
                               int index = val.toInt();
                               if (index >= 0 && index < readings.length) {
-                                final d = readings[index].timestamp;
+                                final d = readings[index].timestamp.toLocal();
                                 final isSameDay = readings.isNotEmpty &&
-                                    readings.first.timestamp.day == readings.last.timestamp.day &&
-                                    readings.first.timestamp.month == readings.last.timestamp.month;
+                                    readings.first.timestamp.toLocal().day == readings.last.timestamp.toLocal().day &&
+                                    readings.first.timestamp.toLocal().month == readings.last.timestamp.toLocal().month &&
+                                    readings.first.timestamp.toLocal().year == readings.last.timestamp.toLocal().year;
                                 if (isSameDay) {
-                                  final hh = d.hour.toString().padLeft(2, '0');
-                                  final mm = d.minute.toString().padLeft(2, '0');
-                                  return Text('$hh:$mm', style: const TextStyle(color: Colors.white38, fontSize: 9));
+                                  return Text(
+                                    DateFormat('h:mm a').format(d),
+                                    style: const TextStyle(color: Colors.white38, fontSize: 8.5),
+                                  );
                                 } else {
-                                  return Text('${d.day} ${_getMonthName(d.month)}', style: const TextStyle(color: Colors.white38, fontSize: 9));
+                                  return Text(
+                                    '${d.day} ${_getMonthName(d.month)}\n${DateFormat('h:mm a').format(d)}',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Colors.white38, fontSize: 8, height: 1.15),
+                                  );
                                 }
                               }
                               return const SizedBox();
@@ -625,10 +632,9 @@ class _DashboardHistoricalGraphState extends ConsumerState<DashboardHistoricalGr
                               int idx = spot.x.toInt();
                               if (idx >= 0 && idx < readings.length) {
                                 final r = readings[idx];
-                                final hh = r.timestamp.hour.toString().padLeft(2, '0');
-                                final mm = r.timestamp.minute.toString().padLeft(2, '0');
+                                final timeStr = DateFormat('d MMM, h:mm a').format(r.timestamp.toLocal());
                                 return LineTooltipItem(
-                                  '${r.timestamp.day} ${_getMonthName(r.timestamp.month)} $hh:$mm\nScore: ${r.waterQualityScore}/100\npH: ${r.ph} | TDS: ${r.tds.toInt()} ppm | Temp: ${r.temperature.toStringAsFixed(1)}°C',
+                                  '$timeStr\nScore: ${r.waterQualityScore}/100\npH: ${r.ph} | TDS: ${r.tds.toInt()} ppm | Temp: ${r.temperature.toStringAsFixed(1)}°C',
                                   TextStyle(
                                     color: AppConstants.getScoreColor(r.waterQualityScore),
                                     fontWeight: FontWeight.bold,

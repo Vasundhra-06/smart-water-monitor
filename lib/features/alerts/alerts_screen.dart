@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/providers/app_providers.dart';
@@ -438,7 +439,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Detected: ${alert.detectedAt.hour.toString().padLeft(2, '0')}:${alert.detectedAt.minute.toString().padLeft(2, '0')}',
+                              'Detected: ${DateFormat('h:mm a').format(alert.detectedAt.toLocal())}',
                               style: const TextStyle(color: Colors.white38, fontSize: 11),
                             ),
                             const Row(
