@@ -32,4 +32,16 @@ class CleaningRecord {
           : DateTime.now(),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'tank_id': tankId,
+      'cleaned_at': cleanedAt.toIso8601String(),
+      'cleaned_by': cleanedBy,
+      'notes': notes,
+      'cleaning_method': cleaningMethod,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
 }

@@ -224,7 +224,9 @@ class TanksScreen extends ConsumerWidget {
                       const Icon(Icons.cleaning_services_rounded, size: 12, color: Colors.white38),
                       const SizedBox(width: 4),
                       Text(
-                        '${tank.daysSinceCleaning}d ago',
+                        tank.daysSinceCleaning != null
+                            ? '${tank.daysSinceCleaning}d ago'
+                            : 'Not cleaned',
                         style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ],

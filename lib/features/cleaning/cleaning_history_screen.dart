@@ -45,11 +45,21 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         actions: [
-          IconButton(
-            tooltip: 'Record Cleaning',
-            icon: const Icon(Icons.add_task_rounded, color: AppConstants.accentCyan),
-            onPressed: () => context.push('/record-cleaning'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppConstants.accentCyan,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Record Cleaning', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              onPressed: () => context.push('/record-cleaning'),
+            ),
           ),
+          const SizedBox(width: 4),
           const NotificationBellButton(),
           const SizedBox(width: 8),
         ],
@@ -196,7 +206,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
                       children: [
                         const Icon(Icons.layers_rounded, size: 16, color: AppConstants.accentCyan),
                         const SizedBox(width: 8),
-                        Text('All Tanks (${allRecords.length})'),
+                        Text(allRecords.isEmpty ? 'All Tanks' : 'All Tanks (${allRecords.length})'),
                       ],
                     ),
                   ),
@@ -211,7 +221,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
                         children: [
                           Icon(icon, size: 16, color: color),
                           const SizedBox(width: 8),
-                          Text('${tank.tankName} ($count)'),
+                          Text(count == 0 ? tank.tankName : '${tank.tankName} ($count)'),
                         ],
                       ),
                     );
@@ -301,8 +311,9 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
     Tank? overdueTank;
     int maxDays = -1;
     for (var t in tanks) {
-      if (t.daysSinceCleaning > maxDays) {
-        maxDays = t.daysSinceCleaning;
+      final days = t.daysSinceCleaning;
+      if (days != null && days > maxDays) {
+        maxDays = days;
         overdueTank = t;
       }
     }
@@ -326,10 +337,18 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
         );
         final oldestTile = _buildMetricTile(
           title: 'OLDEST SINCE CLEANED',
-          value: overdueTank != null ? '${overdueTank.daysSinceCleaning} days ago' : 'N/A',
-          icon: Icons.warning_amber_rounded,
-          accentColor: (maxDays > 20) ? AppConstants.colorCritical : AppConstants.colorAttention,
-          subtitle: overdueTank?.tankName ?? 'All up-to-date',
+          value: overdueTank != null && overdueTank.daysSinceCleaning != null
+              ? '${overdueTank.daysSinceCleaning} days ago'
+              : 'Never cleaned',
+          icon: overdueTank != null && overdueTank.daysSinceCleaning != null
+              ? Icons.schedule_rounded
+              : Icons.info_outline_rounded,
+          accentColor: overdueTank != null && overdueTank.daysSinceCleaning != null
+              ? (maxDays > 30 ? AppConstants.colorCritical : AppConstants.colorAttention)
+              : AppConstants.accentCyan,
+          subtitle: overdueTank != null
+              ? overdueTank.tankName
+              : (_selectedFilterTankId == 'all' ? 'All tanks clean / pending log' : 'No cleaning recorded'),
         );
 
         if (isMobile) {
@@ -577,7 +596,7 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
   Widget _buildEmptyState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       decoration: BoxDecoration(
         color: AppConstants.darkCardBackground,
         borderRadius: BorderRadius.circular(16),
@@ -585,11 +604,42 @@ class _CleaningHistoryScreenState extends ConsumerState<CleaningHistoryScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.cleaning_services_outlined, size: 48, color: Colors.white.withValues(alpha: 0.2)),
-          const SizedBox(height: 12),
-          const Text('No cleaning records found for this tank', style: TextStyle(color: Colors.white60, fontSize: 15)),
-          const SizedBox(height: 6),
-          const Text('Tap "Record Cleaning" above to log a new cleaning event.', style: TextStyle(color: Colors.white38, fontSize: 12)),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppConstants.accentCyan.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.cleaning_services_rounded, size: 36, color: AppConstants.accentCyan),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _selectedFilterTankId == 'all'
+                ? 'No Tank Cleanings Recorded Yet'
+                : 'No Cleaning Records for This Tank',
+            style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'All data shown in this app is strictly real-time and factual.\nWhen sanitization or jet washing is conducted, log it here to maintain tank history.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white60, fontSize: 12.5, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.accentCyan,
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            icon: const Icon(Icons.add_task_rounded, size: 18),
+            label: const Text(
+              'Record Tank Cleaning',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            onPressed: () => context.push('/record-cleaning'),
+          ),
         ],
       ),
     );

@@ -615,7 +615,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               const Icon(Icons.calendar_today_rounded, size: 14, color: Colors.white38),
               const SizedBox(width: 6),
-              Text('Days Since Last Cleaning: ${tank.daysSinceCleaning} days', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+              Text(
+                tank.daysSinceCleaning != null
+                    ? 'Days Since Last Cleaning: ${tank.daysSinceCleaning} days'
+                    : 'Last Cleaning: Not cleaned yet',
+                style: const TextStyle(color: Colors.white60, fontSize: 12),
+              ),
             ],
           ),
         ],

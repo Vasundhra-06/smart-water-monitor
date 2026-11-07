@@ -29,7 +29,7 @@ class _AddTankScreenState extends ConsumerState<AddTankScreen> {
       status: TankStatus.online,
       deviceId: null,
       installationDate: now,
-      lastCleanedAt: now,
+      lastCleanedAt: null,
       createdAt: now,
       updatedAt: now,
     );

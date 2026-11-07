@@ -9,7 +9,7 @@ class Tank {
   final TankStatus status;
   final String? deviceId;
   final DateTime installationDate;
-  final DateTime lastCleanedAt;
+  final DateTime? lastCleanedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -22,13 +22,14 @@ class Tank {
     required this.status,
     this.deviceId,
     required this.installationDate,
-    required this.lastCleanedAt,
+    this.lastCleanedAt,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  int get daysSinceCleaning {
-    return DateTime.now().difference(lastCleanedAt).inDays;
+  int? get daysSinceCleaning {
+    if (lastCleanedAt == null) return null;
+    return DateTime.now().difference(lastCleanedAt!).inDays;
   }
 
   factory Tank.fromJson(Map<String, dynamic> json) {
@@ -45,7 +46,7 @@ class Tank {
           : DateTime.now(),
       lastCleanedAt: json['last_cleaned_at'] != null
           ? DateTime.parse(json['last_cleaned_at'])
-          : DateTime.now().subtract(const Duration(days: 10)),
+          : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),
@@ -71,7 +72,7 @@ class Tank {
       'status': status.name,
       'device_id': deviceId,
       'installation_date': installationDate.toIso8601String(),
-      'last_cleaned_at': lastCleanedAt.toIso8601String(),
+      'last_cleaned_at': lastCleanedAt?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

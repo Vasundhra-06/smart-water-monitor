@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/sensor_reading.dart';
 import '../../data/models/tank.dart';
 import '../../data/models/device.dart';
@@ -12,6 +14,7 @@ class MockSensorService {
   static final MockSensorService instance = MockSensorService._internal();
   MockSensorService._internal() {
     _initSeedData();
+    _loadSavedCleaningRecords();
     _startLiveTicker();
   }
 
@@ -51,7 +54,7 @@ class MockSensorService {
         status: TankStatus.online,
         deviceId: 'TANK_001',
         installationDate: now.subtract(const Duration(days: 120)),
-        lastCleanedAt: now.subtract(const Duration(days: 6)),
+        lastCleanedAt: null, // Only real data: tank has not been cleaned yet
         createdAt: now.subtract(const Duration(days: 120)),
         updatedAt: now,
       ),
@@ -64,7 +67,7 @@ class MockSensorService {
         status: TankStatus.online,
         deviceId: 'TANK_002',
         installationDate: now.subtract(const Duration(days: 200)),
-        lastCleanedAt: now.subtract(const Duration(days: 14)),
+        lastCleanedAt: null,
         createdAt: now.subtract(const Duration(days: 200)),
         updatedAt: now,
       ),
@@ -77,7 +80,7 @@ class MockSensorService {
         status: TankStatus.online,
         deviceId: 'TANK_003',
         installationDate: now.subtract(const Duration(days: 90)),
-        lastCleanedAt: now.subtract(const Duration(days: 22)),
+        lastCleanedAt: null,
         createdAt: now.subtract(const Duration(days: 90)),
         updatedAt: now,
       ),
@@ -90,7 +93,7 @@ class MockSensorService {
         status: TankStatus.online,
         deviceId: 'TANK_004',
         installationDate: now.subtract(const Duration(days: 60)),
-        lastCleanedAt: now.subtract(const Duration(days: 2)),
+        lastCleanedAt: null,
         createdAt: now.subtract(const Duration(days: 60)),
         updatedAt: now,
       ),
@@ -159,7 +162,7 @@ class MockSensorService {
         analysisTime: now,
         waterQualityScore: 85,
         status: 'GOOD',
-        summary: 'Water-quality parameters are stable following the recent cleaning on 10 Aug 2026.',
+        summary: 'Water-quality parameters are stable based on live telemetry readings.',
         detectedAnomalies: [],
         trend: 'STABLE',
         cleaningRecommendation: false,
@@ -338,18 +341,60 @@ class MockSensorService {
     );
   }
 
+  Future<void> _loadSavedCleaningRecords() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList('saved_cleaning_records') ?? [];
+      if (list.isNotEmpty) {
+        _cleaningHistory = list
+            .map((item) => CleaningRecord.fromJson(json.decode(item)))
+            .toList();
+        for (var record in _cleaningHistory) {
+          final idx = _tanks.indexWhere((t) => t.id == record.tankId);
+          if (idx != -1) {
+            final old = _tanks[idx];
+            if (old.lastCleanedAt == null || record.cleanedAt.isAfter(old.lastCleanedAt!)) {
+              _tanks[idx] = Tank(
+                id: old.id,
+                tankName: old.tankName,
+                location: old.location,
+                capacity: old.capacity,
+                description: old.description,
+                status: old.status,
+                deviceId: old.deviceId,
+                installationDate: old.installationDate,
+                lastCleanedAt: record.cleanedAt,
+                createdAt: old.createdAt,
+                updatedAt: old.updatedAt,
+              );
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveCleaningRecords() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _cleaningHistory.map((r) => json.encode(r.toJson())).toList();
+      await prefs.setStringList('saved_cleaning_records', list);
+    } catch (_) {}
+  }
+
   void recordCleaningEvent(String tankId, String technicianName, String notes, String method) {
     final now = DateTime.now();
     final newRecord = CleaningRecord(
       id: 'clean-${now.millisecondsSinceEpoch}',
       tankId: tankId,
       cleanedAt: now,
-      cleanedBy: technicianName,
+      cleanedBy: technicianName.trim().isEmpty ? 'Technician' : technicianName.trim(),
       notes: notes,
       cleaningMethod: method,
       createdAt: now,
     );
     _cleaningHistory.insert(0, newRecord);
+    _saveCleaningRecords();
 
     // Update Tank last cleaned timestamp
     int index = _tanks.indexWhere((t) => t.id == tankId);
@@ -384,6 +429,30 @@ class MockSensorService {
       predictedDeterioration: 'Estimated stable period: 25 days',
       confidence: 0.98,
     );
+  }
+
+  Future<void> clearAllCleaningHistory() async {
+    _cleaningHistory.clear();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('saved_cleaning_records');
+    } catch (_) {}
+    for (int i = 0; i < _tanks.length; i++) {
+      final old = _tanks[i];
+      _tanks[i] = Tank(
+        id: old.id,
+        tankName: old.tankName,
+        location: old.location,
+        capacity: old.capacity,
+        description: old.description,
+        status: old.status,
+        deviceId: old.deviceId,
+        installationDate: old.installationDate,
+        lastCleanedAt: null,
+        createdAt: old.createdAt,
+        updatedAt: DateTime.now(),
+      );
+    }
   }
 
   void addTank(Tank tank) {

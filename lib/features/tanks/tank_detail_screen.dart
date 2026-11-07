@@ -52,7 +52,13 @@ class TankDetailScreen extends ConsumerWidget {
                   _infoRow('Status', tank.status.name.toUpperCase(), Colors.greenAccent),
                   _infoRow('Capacity', '${tank.capacity.toStringAsFixed(0)} Liters', Colors.white),
                   _infoRow('Power Source', device?.powerStatus.name.toUpperCase() ?? 'MAINS', Colors.white),
-                  _infoRow('Last Cleaned', '${tank.daysSinceCleaning} days ago', Colors.amber),
+                  _infoRow(
+                    'Last Cleaned',
+                    tank.daysSinceCleaning != null
+                        ? '${tank.daysSinceCleaning} days ago'
+                        : 'Not cleaned yet',
+                    tank.daysSinceCleaning != null ? Colors.amber : Colors.white60,
+                  ),
                   _infoRow('AI Water Quality Score', '${ai.waterQualityScore} / 100 (${ai.status})', AppConstants.getScoreColor(ai.waterQualityScore)),
                 ],
               ),
