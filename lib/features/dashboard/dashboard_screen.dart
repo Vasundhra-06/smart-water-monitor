@@ -12,6 +12,7 @@ import 'widgets/dashboard_historical_graph.dart';
 import '../../data/models/tank.dart';
 import '../../data/models/sensor_reading.dart';
 import '../../data/models/ai_analysis_result.dart';
+import '../../data/repositories/alert_repository.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -640,14 +641,45 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             Expanded(child: _buildActionCard(context, 'Storage Tanks', Icons.water_rounded, () => context.push('/tanks'))),
             const SizedBox(width: 12),
-            Expanded(child: _buildActionCard(context, 'Alerts Log', Icons.notifications_active_rounded, () => context.push('/alerts'))),
+            Builder(
+              builder: (ctx) {
+                final alerts = ref.watch(alertsProvider).value ?? [];
+                final sysStatus = AlertRepository.computeSystemStatus(alerts);
+                Color alertCardColor;
+                IconData alertCardIcon;
+                switch (sysStatus) {
+                  case 'critical':
+                    alertCardColor = const Color(0xFFEF4444);
+                    alertCardIcon = Icons.error_outline_rounded;
+                    break;
+                  case 'warning':
+                    alertCardColor = const Color(0xFFFFB300);
+                    alertCardIcon = Icons.warning_amber_rounded;
+                    break;
+                  default:
+                    alertCardColor = const Color(0xFF22C55E);
+                    alertCardIcon = Icons.check_circle_outline_rounded;
+                    break;
+                }
+                return Expanded(
+                  child: _buildActionCard(
+                    context,
+                    'Alerts Log',
+                    alertCardIcon,
+                    () => context.push('/alerts'),
+                    iconColor: alertCardColor,
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildActionCard(BuildContext context, String label, IconData icon, VoidCallback onTap) {
+  Widget _buildActionCard(BuildContext context, String label, IconData icon, VoidCallback onTap, {Color? iconColor}) {
+    final color = iconColor ?? AppConstants.accentCyan;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -656,11 +688,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: AppConstants.darkCardBackground,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppConstants.darkCardBorder),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppConstants.accentCyan, size: 20),
+            Icon(icon, color: color, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600))),
           ],

@@ -15,9 +15,9 @@ class AlertDetailScreen extends StatelessWidget {
     final severity = alertData?['severity'] ?? 'WARNING';
     final alertType = alertData?['alertType'] ?? 'quality';
 
-    Color severityColor = AppConstants.colorInfo;
-    if (severity == 'WARNING') severityColor = AppConstants.colorAttention;
-    if (severity == 'CRITICAL') severityColor = AppConstants.colorCritical;
+    Color severityColor = const Color(0xFF22C55E); // Green default (safe)
+    if (severity == 'WARNING') severityColor = const Color(0xFFFFB300); // Yellow
+    if (severity == 'CRITICAL') severityColor = const Color(0xFFEF4444); // Red
 
     return Scaffold(
       backgroundColor: AppConstants.darkBackground,
